@@ -29,7 +29,7 @@ class ProfileScreen extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 30,
-                      backgroundColor: AppTheme.primaryColor.withOpacity(0.15),
+                      backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
                       child: const Icon(Icons.person, size: 36, color: AppTheme.primaryColor),
                     ),
                     const SizedBox(width: 16),
@@ -83,7 +83,7 @@ class ProfileScreen extends StatelessWidget {
                     subtitle: Text("Domain: ${g['target_domain'] ?? 'General'} • Level: ${g['target_mastery_level'] ?? 'Intermediate'}"),
                   ),
                 );
-              }).toList(),
+              }),
 
             const SizedBox(height: 20),
 

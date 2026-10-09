@@ -92,7 +92,7 @@ class RoadmapScreen extends StatelessWidget {
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: isCompleted ? AppTheme.accentColor : AppTheme.primaryColor.withOpacity(0.1),
+                          backgroundColor: isCompleted ? AppTheme.accentColor : AppTheme.primaryColor.withValues(alpha: 0.1),
                           foregroundColor: isCompleted ? Colors.white : AppTheme.primaryColor,
                           child: Text("${idx + 1}"),
                         ),
@@ -109,7 +109,7 @@ class RoadmapScreen extends StatelessWidget {
                             : const Icon(Icons.chevron_right_rounded),
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
       ),

@@ -78,7 +78,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.auto_awesome, size: 48, color: AppTheme.primaryColor.withOpacity(0.5)),
+                        Icon(Icons.auto_awesome, size: 48, color: AppTheme.primaryColor.withValues(alpha: 0.5)),
                         const SizedBox(height: 12),
                         const Text(
                           "Ask Elara anything to begin your learning journey.",
@@ -176,7 +176,7 @@ class _ChatScreenState extends State<ChatScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
