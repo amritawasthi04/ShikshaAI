@@ -172,6 +172,11 @@ class LessonRepository:
     async def get_lesson_version(self, lesson_id: str, version: int = 1) -> Optional[LessonVersionModel]:
         return await self.versions.find_one({"lesson_id": lesson_id, "version": version})
 
+    async def save_lesson_version(self, lesson: LessonVersionModel) -> LessonVersionModel:
+        await self.versions.insert(lesson)
+        return lesson
+
+
     async def get_progress(self, learner_id: str, lesson_id: str) -> Optional[LessonProgressModel]:
         return await self.progress.find_one({"learner_id": learner_id, "lesson_id": lesson_id})
 
@@ -359,3 +364,39 @@ class ExecutionRepository:
             {"event_id": event_id},
             {"delivery_state": "dispatched", "dispatched_at": utc_now()},
         )
+
+
+# 11. Notifications (with deduplication)
+class NotificationRepository:
+    def __init__(self, db: AsyncIOMotorDatabase) -> None:
+        self.notifications = BaseMongoRepository(db, "notifications", NotificationModel)
+
+    async def create_notification(self, notif: NotificationModel) -> NotificationModel:
+        """Create a notification with idempotent deduplication if dedupe_key is provided."""
+        if notif.dedupe_key:
+            existing = await self.notifications.find_one({"dedupe_key": notif.dedupe_key})
+            if existing:
+                return existing
+        return await self.notifications.insert(notif)
+
+    async def get_notifications(
+        self,
+        learner_id: str,
+        unread_only: bool = False,
+        limit: int = 50,
+    ) -> List[NotificationModel]:
+        query: Dict[str, Any] = {"learner_id": learner_id}
+        if unread_only:
+            query["is_read"] = False
+        return await self.notifications.find_many(
+            query,
+            sort=[("created_at", -1)],
+            limit=limit,
+        )
+
+    async def mark_as_read(self, notification_id: str, learner_id: str) -> bool:
+        return await self.notifications.update_one(
+            {"notification_id": notification_id, "learner_id": learner_id},
+            {"is_read": True},
+        )
+

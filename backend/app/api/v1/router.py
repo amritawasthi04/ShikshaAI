@@ -10,6 +10,7 @@ from app.api.v1.routes import (
     proposals,
     roadmaps,
     runs,
+    skills,
     study,
 )
 
@@ -20,6 +21,9 @@ api_v1_router.include_router(health.router)
 
 # Learner identity, preferences & goals
 api_v1_router.include_router(learners.router)
+
+# Skills & dynamic categorization based on preferences
+api_v1_router.include_router(skills.router)
 
 # Chat & Teacher Brain (Elara) orchestration
 api_v1_router.include_router(chat.router)
@@ -44,3 +48,4 @@ api_v1_router.include_router(proposals.router)
 
 # Execution runs and task tracking
 api_v1_router.include_router(runs.router)
+

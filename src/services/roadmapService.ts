@@ -1,5 +1,13 @@
-import { PathBuilderState, GeneratedRoadmap, RoadmapPhase, RoadmapLesson } from "@/types/roadmap";
+import {
+  PathBuilderState,
+  GeneratedRoadmap,
+  RoadmapPhase,
+  RoadmapLesson,
+  SkillCategoryItem,
+  SkillCategoriesResponse,
+} from "../types/roadmap";
 import { generatePersonalizedRoadmap } from "./roadmapGenerator";
+import { UserProfile } from "./authService";
 
 const DRAFT_STORAGE_KEY = "shiksha_build_path_draft";
 const ACTIVE_ROADMAP_KEY = "shiksha_active_roadmap";
@@ -112,6 +120,12 @@ class RoadmapService {
       try {
         localStorage.setItem(ACTIVE_ROADMAP_KEY, JSON.stringify(roadmap));
         this.clearDraft();
+        // Asynchronously synchronize with backend database & MongoDB Atlas
+        fetch("/api/roadmap", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ state, roadmap }),
+        }).catch((e) => console.warn("Backend roadmap sync deferred:", e));
       } catch (e) {
         console.warn("Failed to save active roadmap:", e);
       }
@@ -141,7 +155,16 @@ class RoadmapService {
   /**
    * Calculate real dashboard analytics derived strictly from the active roadmap and user progression
    */
-  getDashboardMetrics(roadmap: GeneratedRoadmap, streakDays: number = 12): DashboardMetrics {
+  getDashboardMetrics(
+    roadmap: GeneratedRoadmap,
+    userOrStreakDays?: number | UserProfile | null
+  ): DashboardMetrics {
+    const isProfile = typeof userOrStreakDays === "object" && userOrStreakDays !== null;
+    const userProfile = isProfile ? (userOrStreakDays as UserProfile) : null;
+    const streakDays =
+      userProfile?.streakDays ??
+      (typeof userOrStreakDays === "number" ? userOrStreakDays : 12);
+
     let completedLessonsCount = 0;
     let totalLessonsCount = 0;
     let completedProjectsCount = 0;
@@ -154,6 +177,26 @@ class RoadmapService {
 
     const skillsMastery: SkillMastery[] = [];
 
+    // 1. Prior Known Skills: Dynamically populate user's verified input skills
+    const userKnownSkills = [
+      ...(userProfile?.learningPreferences?.knownSkills || []),
+      ...(roadmap.knownSkills || []),
+    ];
+    const uniqueSkills = Array.from(new Set(userKnownSkills));
+    for (const skill of uniqueSkills) {
+      if (skill && skill.trim().length > 0) {
+        skillsMastery.push({
+          name: skill.trim(),
+          category: "Verified Prior Skill",
+          score: 100,
+          level: "Mastered",
+          completedCount: 1,
+          totalCount: 1,
+        });
+      }
+    }
+
+    // 2. Active Curriculum Phase Competency Skills
     for (const phase of roadmap.phases) {
       let phaseCompleted = 0;
       for (const lesson of phase.lessons) {
@@ -189,7 +232,7 @@ class RoadmapService {
       const phaseTotal = phase.lessons.length;
       const score = phaseTotal > 0 ? Math.round((phaseCompleted / phaseTotal) * 100) : 0;
       const cleanSkillName = phase.title.replace(/^Phase \d+:\s*/, "");
-      
+
       let level: "Not Started" | "Developing" | "Proficient" | "Mastered" = "Not Started";
       if (score === 100) {
         level = "Mastered";
@@ -209,20 +252,28 @@ class RoadmapService {
       });
     }
 
-    // Weekly hours target & actual calculation
+    // 3. User Target Weekly Hours & Adaptive Pace Calculation
+    const targetHoursFromUser = userProfile?.learningPreferences?.weeklyTargetHours;
     const weeklyTargetHours =
-      roadmap.weeklyPace === "intensive"
+      targetHoursFromUser && targetHoursFromUser > 0
+        ? targetHoursFromUser
+        : roadmap.weeklyPace === "intensive"
         ? 18
         : roadmap.weeklyPace === "casual"
         ? 5
         : 10;
 
+    const studyPace =
+      userProfile?.learningPreferences?.studyPace ||
+      roadmap.weeklyPace ||
+      "recommended";
+
     const weeklyPaceDescription =
-      roadmap.weeklyPace === "intensive"
-        ? "15 - 20 hrs / week"
-        : roadmap.weeklyPace === "casual"
-        ? "3 - 5 hrs / week"
-        : "8 - 12 hrs / week";
+      studyPace === "intensive"
+        ? `${weeklyTargetHours} hrs / week (Intensive Track)`
+        : studyPace === "relaxed" || studyPace === "casual"
+        ? `${weeklyTargetHours} hrs / week (Balanced Foundation)`
+        : `${weeklyTargetHours} hrs / week (Recommended Pace)`;
 
     // Convert completed minutes to hours formatted nicely
     const completedHoursFromLessons = Math.round((totalCompletedMinutes / 60) * 10) / 10;
@@ -243,7 +294,12 @@ class RoadmapService {
       }
     }
 
-    // Contextual Next Recommendation with Clear Explanation
+    // 4. Contextual Next Recommendation Calibrated with User Learning Style
+    const learningStyle =
+      userProfile?.learningPreferences?.learningStyle ||
+      roadmap.learningStyle ||
+      "balanced";
+
     let nextRecommendation: RecommendationInfo | null = null;
     if (nextIncompleteLesson && nextIncompletePhase) {
       let reason = "Essential next step to build foundational competencies for your target goal.";
@@ -263,6 +319,12 @@ class RoadmapService {
           reason = `Recommended continuation from "${lastCompletedLesson.title}" to expand your architecture skills.`;
           actionText = "Begin Lesson";
         }
+      }
+
+      if (learningStyle === "hands-on" || learningStyle === "project-first") {
+        reason = `[Hands-On Focus] ${reason}`;
+      } else if (learningStyle === "deep-theory") {
+        reason = `[Conceptual Architecture Focus] ${reason}`;
       }
 
       nextRecommendation = {
@@ -351,6 +413,12 @@ class RoadmapService {
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem(ACTIVE_ROADMAP_KEY, JSON.stringify(roadmap));
+        // Asynchronously synchronize lesson progress & study sessions to backend
+        fetch("/api/progress", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lessonId, completed }),
+        }).catch((e) => console.warn("Backend progress sync deferred:", e));
       } catch (e) {
         console.warn("Failed to update active roadmap:", e);
       }
@@ -468,6 +536,12 @@ class RoadmapService {
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem(ACTIVE_ROADMAP_KEY, JSON.stringify(roadmap));
+        // Asynchronously synchronize updated curriculum with backend database
+        fetch("/api/roadmap", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roadmap }),
+        }).catch((e) => console.warn("Backend resource addition sync deferred:", e));
       } catch (e) {
         console.warn("Failed to persist added resource to roadmap:", e);
       }
@@ -486,6 +560,85 @@ class RoadmapService {
   clearRoadmap(): void {
     if (typeof window === "undefined") return;
     localStorage.removeItem(ACTIVE_ROADMAP_KEY);
+  }
+
+  /**
+   * Fetch dynamically categorized skills tailored to user's preferences, goal, and experience level
+   */
+  async fetchSkillCategories(preferences: {
+    goal?: string;
+    targetRole?: string;
+    experienceLevel?: string;
+    background?: string;
+  }): Promise<SkillCategoriesResponse> {
+    try {
+      const res = await fetch("/api/skills/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          goal: preferences.goal || "",
+          targetRole: preferences.targetRole || "",
+          experienceLevel: preferences.experienceLevel || "intermediate",
+          background: preferences.background || "",
+        }),
+      });
+
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn("Failed to fetch categorized skills from API, falling back:", e);
+    }
+
+    // Default fallback
+    return {
+      domain_id: "fullstack",
+      domain_title: "Full-Stack Web Development",
+      description: "Modern component interfaces, server-side APIs, and databases.",
+      target_role: preferences.targetRole || "Full-Stack Web Developer",
+      experience_level: preferences.experienceLevel || "intermediate",
+      categories: [
+        {
+          id: "frontend_ui",
+          name: "Frontend & UI Frameworks",
+          icon: "layout",
+          description: "Modern component libraries and client rendering.",
+          skills: ["React", "Next.js", "TypeScript", "JavaScript", "HTML5 & CSS3", "Tailwind CSS"],
+          recommended: ["React", "Next.js", "TypeScript"],
+        },
+        {
+          id: "backend_apis",
+          name: "Backend & API Architecture",
+          icon: "server",
+          description: "Server-side logic and API standards.",
+          skills: ["Node.js", "Express", "REST APIs", "GraphQL", "FastAPI"],
+          recommended: ["Node.js", "REST APIs"],
+        },
+        {
+          id: "databases_storage",
+          name: "Databases & Caching",
+          icon: "database",
+          description: "Relational, document storage, and in-memory caches.",
+          skills: ["PostgreSQL", "MongoDB", "Redis", "Prisma ORM"],
+          recommended: ["PostgreSQL", "MongoDB"],
+        },
+        {
+          id: "devops_tooling",
+          name: "DevOps & Tooling",
+          icon: "terminal",
+          description: "Version control and container delivery.",
+          skills: ["Git & GitHub", "Docker", "AWS", "Vercel", "Linux / Bash"],
+          recommended: ["Git & GitHub", "Docker"],
+        },
+      ],
+      all_skills: [
+        "React", "Next.js", "TypeScript", "JavaScript", "HTML5 & CSS3", "Tailwind CSS",
+        "Node.js", "Express", "REST APIs", "GraphQL", "FastAPI",
+        "PostgreSQL", "MongoDB", "Redis", "Prisma ORM",
+        "Git & GitHub", "Docker", "AWS", "Vercel", "Linux / Bash"
+      ],
+      recommended_skills: ["React", "TypeScript", "Node.js", "PostgreSQL", "Git & GitHub"],
+    };
   }
 
   /**

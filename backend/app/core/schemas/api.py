@@ -56,7 +56,9 @@ class TeacherChatResponse(BaseSchema):
 class CreateRoadmapRequest(BaseSchema):
     goal_id: str
     milestones: List[Dict[str, Any]] = Field(default_factory=list)
+    canonical_topic: Optional[str] = None
     rationale: str = ""
+
 
 
 class UpdateProgressRequest(BaseSchema):

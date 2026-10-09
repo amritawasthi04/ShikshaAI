@@ -34,6 +34,9 @@ import {
   ChevronRight,
   AlertCircle,
   Plus,
+  BrainCircuit,
+  Target,
+  Sliders,
 } from "lucide-react";
 import { CountUp, AnimatedContent, AnimatedList } from "@/components/reactbits";
 
@@ -46,34 +49,103 @@ export default function DashboardPage() {
 
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(() => {
     const r = roadmapService.getActiveRoadmap();
-    return roadmapService.getDashboardMetrics(r, 12);
+    const u = authService.getCurrentUser();
+    return roadmapService.getDashboardMetrics(r, u);
   });
 
   const [isLoading, setIsLoading] = useState(false);
   const [hasExplicitPath, setHasExplicitPath] = useState(true);
+  const [skillFilter, setSkillFilter] = useState<"all" | "prior" | "curriculum">("all");
 
-  // Sync latest persisted data from localStorage on mount
+  // Sync latest persisted data from localStorage and backend database on mount
   useEffect(() => {
-    try {
-      const currentUser = authService.getCurrentUser();
-      setUser(currentUser);
+    const syncDashboardData = async () => {
+      try {
+        const currentUser = authService.getCurrentUser();
+        setUser(currentUser);
 
-      const isExplicit = roadmapService.hasExplicitRoadmap();
-      setHasExplicitPath(isExplicit);
+        const isExplicit = roadmapService.hasExplicitRoadmap();
+        setHasExplicitPath(isExplicit);
 
-      const activeRoadmap = roadmapService.getActiveRoadmap();
-      setRoadmap(activeRoadmap);
+        const activeRoadmap = roadmapService.getActiveRoadmap();
+        setRoadmap(activeRoadmap);
 
-      if (activeRoadmap) {
-        const computedMetrics = roadmapService.getDashboardMetrics(
-          activeRoadmap,
-          currentUser?.streakDays || 12
-        );
-        setMetrics(computedMetrics);
+        if (activeRoadmap) {
+          const computedMetrics = roadmapService.getDashboardMetrics(
+            activeRoadmap,
+            currentUser
+          );
+          setMetrics(computedMetrics);
+        }
+
+        // Live backend fetch: synchronize learner profile, preferences, and goals from FastAPI/MongoDB
+        try {
+          const res = await fetch("/api/auth", {
+            headers: {
+              "X-Learner-Id": currentUser?.id || "usr_student_1",
+            },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.preferences || data.profile) {
+              const pref = data.preferences;
+              const remoteProfile = data.profile;
+              if (pref && currentUser) {
+                const updatedPref = {
+                  ...currentUser.learningPreferences,
+                  learningStyle: (pref.learning_style as any) || currentUser.learningPreferences.learningStyle,
+                  weeklyTargetHours: pref.weekly_availability_hours || currentUser.learningPreferences.weeklyTargetHours,
+                  studyPace: (pref.preferred_pace as any) || currentUser.learningPreferences.studyPace,
+                };
+                const updatedUser = {
+                  ...currentUser,
+                  fullName: remoteProfile?.display_name || currentUser.fullName,
+                  learningPreferences: updatedPref,
+                };
+                setUser(updatedUser);
+                if (activeRoadmap) {
+                  setMetrics(roadmapService.getDashboardMetrics(activeRoadmap, updatedUser));
+                }
+              }
+            }
+          }
+        } catch (fetchErr) {
+          console.warn("Background auth refresh deferred:", fetchErr);
+        }
+      } catch (e) {
+        console.error("Failed to load dashboard data:", e);
       }
-    } catch (e) {
-      console.error("Failed to load dashboard data:", e);
-    }
+    };
+
+    syncDashboardData();
+
+    // Listen to profile updates across tabs and path builder wizard
+    const handleProfileUpdated = (e: Event) => {
+      const customEvt = e as CustomEvent<UserProfile>;
+      const updatedUser = customEvt.detail || authService.getCurrentUser();
+      setUser(updatedUser);
+      const curRoadmap = roadmapService.getActiveRoadmap();
+      if (curRoadmap) {
+        setMetrics(roadmapService.getDashboardMetrics(curRoadmap, updatedUser));
+      }
+    };
+
+    const handleRoadmapReset = () => {
+      const curRoadmap = roadmapService.getActiveRoadmap();
+      const curUser = authService.getCurrentUser();
+      setRoadmap(curRoadmap);
+      setMetrics(roadmapService.getDashboardMetrics(curRoadmap, curUser));
+    };
+
+    window.addEventListener("shiksha_profile_updated", handleProfileUpdated);
+    window.addEventListener("shiksha_roadmap_reset", handleRoadmapReset);
+    window.addEventListener("storage", handleRoadmapReset);
+
+    return () => {
+      window.removeEventListener("shiksha_profile_updated", handleProfileUpdated);
+      window.removeEventListener("shiksha_roadmap_reset", handleRoadmapReset);
+      window.removeEventListener("storage", handleRoadmapReset);
+    };
   }, []);
 
   // Handler to toggle lesson completion directly from dashboard with immediate reactive update
@@ -83,7 +155,7 @@ export default function DashboardPage() {
       setRoadmap(updated);
       const computed = roadmapService.getDashboardMetrics(
         updated,
-        user?.streakDays || 12
+        user
       );
       setMetrics(computed);
     }
@@ -106,7 +178,7 @@ export default function DashboardPage() {
   // Compute metrics fallback if state is still initializing
   const activeMetrics =
     metrics ||
-    (roadmap ? roadmapService.getDashboardMetrics(roadmap, user?.streakDays || 12) : null);
+    (roadmap ? roadmapService.getDashboardMetrics(roadmap, user) : null);
 
   // If no roadmap exists at all (Empty State)
   if (!roadmap) {
@@ -142,6 +214,14 @@ export default function DashboardPage() {
   const nextPhase = activeMetrics?.nextIncompletePhase;
   const recommendation = activeMetrics?.nextRecommendation;
 
+  const currentGoalTitle =
+    user?.learningPreferences?.targetGoal || roadmap.targetRole || roadmap.title;
+
+  const knownSkillsList =
+    (user?.learningPreferences?.knownSkills && user.learningPreferences.knownSkills.length > 0)
+      ? user.learningPreferences.knownSkills
+      : (roadmap.knownSkills || []);
+
   return (
     <AppLayout
       pageTitle="Student Dashboard"
@@ -156,24 +236,26 @@ export default function DashboardPage() {
         </Link>
       }
     >
-      {/* 1. Personalized Greeting Banner */}
-      <div className="p-6 sm:p-8 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] mb-8 relative overflow-hidden shadow-2xs">
+      {/* 1. Personalized Dynamic Greeting Banner */}
+      <div className="p-6 sm:p-8 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] mb-6 relative overflow-hidden shadow-2xs">
         <div className="relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#54252C]/10 text-[#54252C] text-xs font-semibold uppercase tracking-wider mb-3">
             <span className="flex items-center gap-1">
               <Flame size={13} className="text-[#54252C]" />
-              {activeMetrics?.learningStreakDays || 12}-Day Streak Active
+              {user?.streakDays || activeMetrics?.learningStreakDays || 0}-Day Streak Active
             </span>
             <span className="text-[#54252C]/40">•</span>
-            <span className="capitalize">{roadmap.experienceLevel || "Personalized"} Track</span>
+            <span className="capitalize">
+              {user?.learningPreferences?.experienceLevel || roadmap.experienceLevel || "Personalized"} Track
+            </span>
           </div>
 
           <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827] mb-2">
-            Welcome back, {user?.fullName || "Aarav Sharma"}
+            Welcome back, {user?.fullName || "Learner"}
           </h2>
 
           <p className="text-sm sm:text-base text-[#292827]/80 leading-relaxed font-sans">
-            You are progressing through your <strong>{roadmap.title}</strong> path. You have completed{" "}
+            You are progressing through your <strong>{currentGoalTitle}</strong> path. You have completed{" "}
             <strong>{activeMetrics?.completedLessonsCount || 0}</strong> of{" "}
             <strong>{activeMetrics?.totalLessonsCount || 0}</strong> lessons (
             <strong>{activeMetrics?.progressPercent || 0}% completed</strong>).
@@ -184,7 +266,7 @@ export default function DashboardPage() {
             <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] bg-[#54252C]/5 border border-[#54252C]/20 text-xs text-[#54252C]">
               <Zap size={13} className="text-[#54252C]" />
               <span>
-                {roadmap.skippedTopics.length} introductory topics skipped based on your known skills.
+                {roadmap.skippedTopics.length} introductory topics skipped based on your verified known skills.
               </span>
             </div>
           )}
@@ -210,6 +292,97 @@ export default function DashboardPage() {
 
         {/* Ambient watermark pattern */}
         <div className="absolute right-0 bottom-0 top-0 w-1/3 pointer-events-none opacity-20 hidden md:block bg-gradient-to-l from-[#D8C8BA] to-transparent" />
+      </div>
+
+      {/* 2. Active Preferences & Focus Profile Panel */}
+      <div className="p-5 sm:p-6 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] mb-8 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-4 border-b border-[#D8C8BA]/60">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-[6px] bg-[#54252C] text-[#F6F1E9] flex items-center justify-center">
+              <BrainCircuit size={17} />
+            </div>
+            <div>
+              <h3 className="font-serif text-base sm:text-lg font-semibold text-[#292827]">
+                Active Learning Preferences & Focus
+              </h3>
+              <p className="text-xs text-[#292827]/60">
+                Derived directly from your input preferences and live curriculum state
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/build-path"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#54252C] hover:text-[#803F47] hover:underline"
+          >
+            <span>Modify Preferences</span>
+            <ChevronRight size={13} />
+          </Link>
+        </div>
+
+        {/* 4-Item Preferences Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          <div className="p-3 rounded-[6px] bg-[#F6F1E9] border border-[#D8C8BA]/70">
+            <span className="text-[0.68rem] uppercase font-semibold text-[#292827]/50 tracking-wider block mb-1">
+              Target Goal
+            </span>
+            <p className="text-xs sm:text-sm font-semibold text-[#54252C] truncate" title={currentGoalTitle}>
+              {currentGoalTitle}
+            </p>
+          </div>
+
+          <div className="p-3 rounded-[6px] bg-[#F6F1E9] border border-[#D8C8BA]/70">
+            <span className="text-[0.68rem] uppercase font-semibold text-[#292827]/50 tracking-wider block mb-1">
+              Experience Level
+            </span>
+            <p className="text-xs sm:text-sm font-semibold text-[#292827] capitalize">
+              {user?.learningPreferences?.experienceLevel || roadmap.experienceLevel || "Intermediate"}
+            </p>
+          </div>
+
+          <div className="p-3 rounded-[6px] bg-[#F6F1E9] border border-[#D8C8BA]/70">
+            <span className="text-[0.68rem] uppercase font-semibold text-[#292827]/50 tracking-wider block mb-1">
+              Learning Style
+            </span>
+            <p className="text-xs sm:text-sm font-semibold text-[#292827] capitalize">
+              {user?.learningPreferences?.learningStyle || "Balanced Theory & Practice"}
+            </p>
+          </div>
+
+          <div className="p-3 rounded-[6px] bg-[#F6F1E9] border border-[#D8C8BA]/70">
+            <span className="text-[0.68rem] uppercase font-semibold text-[#292827]/50 tracking-wider block mb-1">
+              Target Study Pace
+            </span>
+            <p className="text-xs sm:text-sm font-semibold text-[#292827] capitalize">
+              {user?.learningPreferences?.studyPace || "Recommended"} • {user?.learningPreferences?.weeklyTargetHours || activeMetrics?.weeklyTargetHours || 10}h/wk
+            </p>
+          </div>
+        </div>
+
+        {/* Verified Input Skills Badges */}
+        <div className="pt-3 border-t border-[#D8C8BA]/40">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-[#292827]/70 mr-1 flex items-center gap-1">
+              <Check size={13} className="text-[#54252C]" />
+              <span>Your Input Skills:</span>
+            </span>
+            {knownSkillsList.length > 0 ? (
+              knownSkillsList.map((skill) => (
+                <span
+                  key={skill}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#54252C]/10 border border-[#54252C]/20 text-[0.72rem] font-semibold text-[#54252C]"
+                >
+                  <Check size={11} className="stroke-[3]" />
+                  {skill}
+                </span>
+              ))
+            ) : (
+              <span className="text-xs text-[#292827]/60 italic">
+                No prior skills specified (Clean slate curriculum starting from fundamentals)
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* 2. Real Calculated Statistics Row (No Hardcoding) */}
@@ -318,14 +491,14 @@ export default function DashboardPage() {
               <Flame size={16} className="text-[#54252C]" />
             </div>
             <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#54252C]">
-              <CountUp to={activeMetrics?.learningStreakDays || 12} duration={1.5} />{" "}
+              <CountUp to={user?.streakDays ?? (activeMetrics?.learningStreakDays || 0)} duration={1.5} />{" "}
               <span className="text-xs font-sans text-[#292827]/60">Days</span>
             </p>
             <div className="w-full bg-[#D8C8BA]/50 h-1.5 rounded-full mt-3 overflow-hidden">
               <div
                 style={{
                   width: `${Math.min(
-                    ((activeMetrics?.learningStreakDays || 12) / 30) * 100,
+                    (((user?.streakDays ?? (activeMetrics?.learningStreakDays || 0))) / 30) * 100,
                     100
                   )}%`,
                 }}
@@ -564,61 +737,136 @@ export default function DashboardPage() {
         <div className="lg:col-span-4 flex flex-col space-y-6">
           {/* Skills Section with Mastery Indicators */}
           <div className="p-6 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9]">
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#D8C8BA]">
-              <h3 className="font-serif text-lg font-semibold text-[#292827]">
-                Skills & Mastery
-              </h3>
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#D8C8BA]">
+              <div>
+                <h3 className="font-serif text-lg font-semibold text-[#292827]">
+                  Skills & Mastery
+                </h3>
+                <p className="text-xs text-[#292827]/70 leading-relaxed">
+                  Calculated from your verified input skills & completed milestones.
+                </p>
+              </div>
               <Link
                 href="/progress"
-                className="text-xs font-semibold text-[#54252C] hover:underline"
+                className="text-xs font-semibold text-[#54252C] hover:underline flex-shrink-0"
               >
                 Analytics →
               </Link>
             </div>
 
-            <p className="text-xs text-[#292827]/70 mb-4 leading-relaxed">
-              Real-time proficiency calculated from completed curriculum milestones.
-            </p>
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-1.5 p-1 rounded-[6px] bg-[#D8C8BA]/30 mb-4 text-[0.7rem] font-medium">
+              <button
+                type="button"
+                onClick={() => setSkillFilter("all")}
+                className={`px-2.5 py-1 rounded-[4px] transition-colors ${
+                  skillFilter === "all"
+                    ? "bg-[#54252C] text-[#F6F1E9] font-semibold"
+                    : "text-[#292827]/70 hover:text-[#54252C]"
+                }`}
+              >
+                All ({(activeMetrics?.skillsMastery || []).length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSkillFilter("prior")}
+                className={`px-2.5 py-1 rounded-[4px] transition-colors ${
+                  skillFilter === "prior"
+                    ? "bg-[#54252C] text-[#F6F1E9] font-semibold"
+                    : "text-[#292827]/70 hover:text-[#54252C]"
+                }`}
+              >
+                Prior Skills (
+                {
+                  (activeMetrics?.skillsMastery || []).filter(
+                    (s) => s.category === "Verified Prior Skill"
+                  ).length
+                }
+                )
+              </button>
+              <button
+                type="button"
+                onClick={() => setSkillFilter("curriculum")}
+                className={`px-2.5 py-1 rounded-[4px] transition-colors ${
+                  skillFilter === "curriculum"
+                    ? "bg-[#54252C] text-[#F6F1E9] font-semibold"
+                    : "text-[#292827]/70 hover:text-[#54252C]"
+                }`}
+              >
+                Curriculum (
+                {
+                  (activeMetrics?.skillsMastery || []).filter(
+                    (s) => s.category !== "Verified Prior Skill"
+                  ).length
+                }
+                )
+              </button>
+            </div>
 
-            <div className="space-y-4">
-              {(activeMetrics?.skillsMastery || []).map((skill) => {
-                const isMastered = skill.level === "Mastered";
-                const isProficient = skill.level === "Proficient";
-                const isDeveloping = skill.level === "Developing";
+            {/* Filtered Skills List */}
+            <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1">
+              {(() => {
+                const list = (activeMetrics?.skillsMastery || []).filter((s) => {
+                  if (skillFilter === "prior") return s.category === "Verified Prior Skill";
+                  if (skillFilter === "curriculum") return s.category !== "Verified Prior Skill";
+                  return true;
+                });
 
-                return (
-                  <div key={skill.name} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium text-[#292827] truncate max-w-[160px]" title={skill.name}>
-                        {skill.name}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`px-1.5 py-0.5 rounded-[3px] text-[0.65rem] font-semibold uppercase tracking-wider ${
-                            isMastered
-                              ? "bg-[#54252C] text-[#F6F1E9]"
-                              : isProficient
-                              ? "bg-[#54252C]/15 text-[#54252C]"
-                              : isDeveloping
-                              ? "bg-[#D8C8BA]/50 text-[#292827]"
-                              : "border border-[#D8C8BA] text-[#292827]/40"
-                          }`}
-                        >
-                          {skill.level}
-                        </span>
-                        <span className="font-semibold text-[#54252C]">{skill.score}%</span>
+                if (list.length === 0) {
+                  return (
+                    <p className="text-xs text-[#292827]/60 italic py-4 text-center">
+                      No skills found in this view.
+                    </p>
+                  );
+                }
+
+                return list.map((skill) => {
+                  const isMastered = skill.level === "Mastered";
+                  const isProficient = skill.level === "Proficient";
+                  const isDeveloping = skill.level === "Developing";
+                  const isPrior = skill.category === "Verified Prior Skill";
+
+                  return (
+                    <div key={skill.name} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5 truncate max-w-[170px]">
+                          <span className="font-medium text-[#292827] truncate" title={skill.name}>
+                            {skill.name}
+                          </span>
+                          {isPrior && (
+                            <span className="px-1 py-0.2 rounded text-[0.6rem] bg-[#54252C]/10 text-[#54252C] font-semibold flex-shrink-0">
+                              Input
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`px-1.5 py-0.5 rounded-[3px] text-[0.65rem] font-semibold uppercase tracking-wider ${
+                              isMastered
+                                ? "bg-[#54252C] text-[#F6F1E9]"
+                                : isProficient
+                                ? "bg-[#54252C]/15 text-[#54252C]"
+                                : isDeveloping
+                                ? "bg-[#D8C8BA]/50 text-[#292827]"
+                                : "border border-[#D8C8BA] text-[#292827]/40"
+                            }`}
+                          >
+                            {skill.level}
+                          </span>
+                          <span className="font-semibold text-[#54252C]">{skill.score}%</span>
+                        </div>
+                      </div>
+
+                      <div className="w-full bg-[#D8C8BA]/40 h-2 rounded-full overflow-hidden">
+                        <div
+                          style={{ width: `${skill.score}%` }}
+                          className="bg-[#54252C] h-full rounded-full transition-all duration-500"
+                        />
                       </div>
                     </div>
-
-                    <div className="w-full bg-[#D8C8BA]/40 h-2 rounded-full overflow-hidden">
-                      <div
-                        style={{ width: `${skill.score}%` }}
-                        className="bg-[#54252C] h-full rounded-full transition-all duration-500"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
           </div>
 

@@ -2,11 +2,14 @@
 import uuid
 from datetime import timedelta
 import pytest
+from app.core.schemas.plan import WorkerRole
 from app.db.connection import mongo_manager
 from app.db.models.base import utc_now
-from app.db.models.core import OutboxEventModel
+from app.db.models.core import NotificationModel, OutboxEventModel, ProjectModel
 from app.db.operations import DatabaseOperations
 from app.db.reliability import JobManager, OutboxProcessor
+from app.db.repositories.core import NotificationRepository, ProjectRepository
+from app.db.worker import DatabaseWorker
 
 
 @pytest.mark.asyncio
@@ -123,3 +126,128 @@ async def test_database_operations_and_exports():
     finally:
         await core_db["learners"].delete_one({"learner_id": learner_id})
         await core_db["goals"].delete_one({"goal_id": f"goal_{uid}"})
+
+
+@pytest.mark.asyncio
+async def test_notifications_and_deduplication():
+    uid = uuid.uuid4().hex[:8]
+    learner_id = f"lrn_notif_{uid}"
+    core_db = mongo_manager.get_core_db()
+    notif_repo = NotificationRepository(core_db)
+
+    dedupe_key = f"daily_reminder_{uid}"
+    n1 = NotificationModel(
+        notification_id=f"notif_1_{uid}",
+        learner_id=learner_id,
+        type="study_reminder",
+        payload={"message": "Time to practice binary trees!"},
+        dedupe_key=dedupe_key,
+    )
+
+    try:
+        saved1 = await notif_repo.create_notification(n1)
+        assert saved1.notification_id == f"notif_1_{uid}"
+
+        # Duplicate attempt with identical dedupe_key must be safely deduplicated
+        n2 = NotificationModel(
+            notification_id=f"notif_2_{uid}",
+            learner_id=learner_id,
+            type="study_reminder",
+            payload={"message": "Time to practice binary trees!"},
+            dedupe_key=dedupe_key,
+        )
+        saved2 = await notif_repo.create_notification(n2)
+        assert saved2.notification_id == f"notif_1_{uid}"
+
+        unread = await notif_repo.get_notifications(learner_id, unread_only=True)
+        assert len(unread) == 1
+
+        # Mark read
+        marked = await notif_repo.mark_as_read(saved1.notification_id, learner_id)
+        assert marked is True
+
+        unread_after = await notif_repo.get_notifications(learner_id, unread_only=True)
+        assert len(unread_after) == 0
+    finally:
+        await core_db["notifications"].delete_many({"learner_id": learner_id})
+
+
+@pytest.mark.asyncio
+async def test_project_and_sandbox_workflow():
+    uid = uuid.uuid4().hex[:8]
+    learner_id = f"lrn_proj_{uid}"
+    project_id = f"proj_{uid}"
+    sub_id = f"sub_{uid}"
+    exec_id = f"exec_{uid}"
+    skill_id = "skill_graph_traversal"
+
+    core_db = mongo_manager.get_core_db()
+    mentor_worker = DatabaseWorker(learner_id=learner_id, role=WorkerRole.PROJECT_MENTOR)
+    code_worker = DatabaseWorker(learner_id=learner_id, role=WorkerRole.CODE_COACH)
+
+    # 1. Create project brief
+    await core_db["projects"].insert_one({
+        "project_id": project_id,
+        "title": "Build a Graph Path Finder",
+        "brief": "Implement BFS and Dijkstra algorithms.",
+        "requirements": ["BFS traversal", "Shortest path output"],
+        "skill_ids": [skill_id],
+    })
+
+    try:
+        # 2. Mentor reads project brief
+        proj = await mentor_worker.get_project_details(project_id)
+        assert proj is not None
+        assert proj.title == "Build a Graph Path Finder"
+
+        # 3. Code coach records sandbox execution result
+        exec_record = await code_worker.record_sandbox_execution(
+            execution_id=exec_id,
+            submission_id=sub_id,
+            runtime="python3.12",
+            limits={"timeout_seconds": 10, "memory_mb": 256},
+            exit_code=0,
+            stdout="All 5 unit tests passed.",
+            stderr="",
+            status="success",
+        )
+        assert exec_record.exit_code == 0
+        assert exec_record.status == "success"
+
+        # 4. Project mentor evaluates submission and records verified skill evidence
+        eval_result = await mentor_worker.evaluate_project_submission(
+            submission_id=sub_id,
+            project_id=project_id,
+            status="approved",
+            rubric_feedback={"correctness": "Excellent Dijkstra implementation"},
+            skill_evaluations=[{"skill_id": skill_id, "score": 92.0, "misconceptions": []}],
+        )
+        assert eval_result["status"] == "approved"
+        assert eval_result["evidence_count"] == 1
+
+        # Check evidence was recorded
+        evidence = await core_db["skill_evidence"].find_one({"source_id": sub_id})
+        assert evidence is not None
+        assert evidence["score"] == 92.0
+    finally:
+        await core_db["projects"].delete_one({"project_id": project_id})
+        await core_db["submissions"].delete_one({"submission_id": sub_id})
+        await core_db["sandbox_executions"].delete_one({"execution_id": exec_id})
+        await core_db["skill_evidence"].delete_many({"learner_id": learner_id})
+        await core_db["learner_skills"].delete_many({"learner_id": learner_id})
+
+
+@pytest.mark.asyncio
+async def test_backup_and_restore_operations():
+    # Verify backup creation snapshot
+    backup = await DatabaseOperations.create_backup()
+    assert "version" in backup
+    assert "core" in backup
+    assert "chat" in backup
+    assert isinstance(backup["core"], dict)
+
+    # Verify performance metrics inspection
+    perf = await DatabaseOperations.get_performance_metrics()
+    assert "collections" in perf
+    assert len(perf["collections"]) >= 1
+

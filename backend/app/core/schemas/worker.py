@@ -43,6 +43,10 @@ class RoadmapProposalPayload(BaseSchema):
     phases: List[Dict[str, Any]]
     prerequisites: List[str] = Field(default_factory=list)
     rationale: str
+    canonical_topic: Optional[str] = None
+    canonical_ref: Optional[str] = None
+    nodes: Optional[List[Dict[str, Any]]] = None
+
 
 
 class TeachingContentPayload(BaseSchema):

@@ -25,6 +25,7 @@ TOOL_GROUP_MAPPING: Dict[str, ToolGroup] = {
     "get_evaluation_context": ToolGroup.ASSESSMENT,
     "fetch_profile": ToolGroup.LEARNER_RECORDS,
     "fetch_lesson": ToolGroup.LEARNER_RECORDS,
+    "fetch_canonical_roadmap": ToolGroup.KNOWLEDGE,
 }
 
 
@@ -75,8 +76,26 @@ class ToolService:
         elif tool_name == "get_evaluation_context":
             assessment_id = arguments.get("assessment_id", "")
             return await self._get_evaluation_context(learner_id, assessment_id)
+        elif tool_name == "fetch_canonical_roadmap":
+            topic = arguments.get("topic", "python")
+            return self._fetch_canonical_roadmap(topic)
         else:
             raise ValueError(f"Unhandled tool implementation '{tool_name}'")
+
+    def _fetch_canonical_roadmap(self, topic: str) -> Dict[str, Any]:
+        """Fetch canonical roadmap.sh tree and metadata."""
+        from app.core.curriculum.canonical_roadmaps import get_canonical_roadmap
+        canonical = get_canonical_roadmap(topic)
+        if not canonical:
+            return {"error": f"No canonical roadmap found for topic '{topic}'"}
+        return {
+            "topic": canonical["topic"],
+            "description": canonical["description"],
+            "external_ref": canonical["external_ref"],
+            "categories": canonical["categories"],
+            "nodes": [n.model_dump() for n in canonical["nodes"]],
+        }
+
 
     async def _get_learner_context(self, learner_id: str) -> Dict[str, Any]:
         """Fetch a bounded learner profile and progress summary."""

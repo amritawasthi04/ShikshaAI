@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.db.chroma_client import chroma_manager
 from app.db.connection import mongo_manager
+from app.db.models.base import utc_now
 
 logger = logging.getLogger("pathai.db.operations")
 
@@ -115,3 +116,76 @@ class DatabaseOperations:
             "total_chat_records": chat_doc_count,
             "chroma_collections": chroma_ping.get("collection_count", 0),
         }
+
+    @staticmethod
+    async def create_backup() -> Dict[str, Any]:
+        """Create a full JSON snapshot of pathai_core and pathai_chat collections for disaster recovery."""
+        core_db = mongo_manager.get_core_db()
+        chat_db = mongo_manager.get_chat_db()
+
+        backup: Dict[str, Any] = {
+            "version": "1.0",
+            "created_at": utc_now().isoformat(),
+            "core": {},
+            "chat": {},
+        }
+
+        for coll in await core_db.list_collection_names():
+            docs = await core_db[coll].find({}, {"_id": 0}).to_list(1000)
+            backup["core"][coll] = docs
+
+        for coll in await chat_db.list_collection_names():
+            docs = await chat_db[coll].find({}, {"_id": 0}).to_list(1000)
+            backup["chat"][coll] = docs
+
+        return backup
+
+    @staticmethod
+    async def restore_backup(backup_data: Dict[str, Any]) -> Dict[str, int]:
+        """Restore collections from a JSON backup snapshot."""
+        core_db = mongo_manager.get_core_db()
+        chat_db = mongo_manager.get_chat_db()
+
+        restored_counts: Dict[str, int] = {}
+
+        core_data = backup_data.get("core", {})
+        for coll_name, docs in core_data.items():
+            if docs:
+                count = 0
+                for doc in docs:
+                    # Idempotent insert or replace
+                    primary_key = "learner_id" if "learner_id" in doc else list(doc.keys())[0]
+                    await core_db[coll_name].update_one({primary_key: doc[primary_key]}, {"$set": doc}, upsert=True)
+                    count += 1
+                restored_counts[f"core.{coll_name}"] = count
+
+        chat_data = backup_data.get("chat", {})
+        for coll_name, docs in chat_data.items():
+            if docs:
+                count = 0
+                for doc in docs:
+                    primary_key = "conversation_id" if "conversation_id" in doc else list(doc.keys())[0]
+                    await chat_db[coll_name].update_one({primary_key: doc[primary_key]}, {"$set": doc}, upsert=True)
+                    count += 1
+                restored_counts[f"chat.{coll_name}"] = count
+
+        return restored_counts
+
+    @staticmethod
+    async def get_performance_metrics() -> Dict[str, Any]:
+        """Check index statistics and collection memory performance."""
+        core_db = mongo_manager.get_core_db()
+        stats: Dict[str, Any] = {}
+
+        for coll_name in await core_db.list_collection_names():
+            coll = core_db[coll_name]
+            indexes = await coll.index_information()
+            doc_count = await coll.count_documents({})
+            stats[coll_name] = {
+                "document_count": doc_count,
+                "index_count": len(indexes),
+                "indexes": list(indexes.keys()),
+            }
+
+        return {"collections": stats}
+

@@ -1,8 +1,30 @@
-"""FastAPI main application bootstrap."""
+from contextlib import asynccontextmanager
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api.v1.router import api_v1_router
+
+logger = logging.getLogger("pathai.main")
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Manage application startup and shutdown lifecycle."""
+    logger.info("PathAI Backend starting up...")
+    try:
+        from app.db.connection import mongo_manager
+        from app.db.chroma_client import chroma_manager
+        await mongo_manager.ping()
+        chroma_manager.ping()
+    except Exception as e:
+        logger.warning("Datastore startup notice: %s", e)
+    yield
+    try:
+        from app.db.connection import mongo_manager
+        mongo_manager.close()
+    except Exception as e:
+        logger.warning("Datastore shutdown notice: %s", e)
 
 
 def create_app() -> FastAPI:
@@ -13,6 +35,7 @@ def create_app() -> FastAPI:
         version="0.1.0",
         docs_url="/docs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
 
     # Configure CORS for client connectivity

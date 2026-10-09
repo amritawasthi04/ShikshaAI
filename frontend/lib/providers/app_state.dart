@@ -65,6 +65,30 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<Map<String, dynamic>?> startMilestoneLesson(String milestoneId) async {
+    try {
+      final roadmapId = activeRoadmap?["roadmap_id"];
+      final lesson = await ApiService.startMilestoneLesson(milestoneId, roadmapId);
+      await loadActiveRoadmap();
+      return lesson;
+    } catch (e) {
+      errorMessage = "Could not start lesson: $e";
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<void> completeLesson(String lessonId) async {
+    try {
+      await ApiService.updateLessonProgress(lessonId, "completed");
+      await loadActiveRoadmap();
+    } catch (e) {
+      errorMessage = "Could not complete lesson: $e";
+      notifyListeners();
+    }
+  }
+
+
   Future<void> loadAssessments() async {
     try {
       assessments = await ApiService.getAssessments();

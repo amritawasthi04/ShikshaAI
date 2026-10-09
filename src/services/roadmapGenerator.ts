@@ -4,6 +4,7 @@ import {
   RoadmapPhase,
   RoadmapLesson,
 } from "@/types/roadmap";
+import { getDetailedLessonModule } from "@/data/learningModules";
 
 /**
  * Deterministic rules-based roadmap generator.
@@ -38,6 +39,20 @@ export function generatePersonalizedRoadmap(state: PathBuilderState): GeneratedR
 
   // Generate 5 Ordered Phases based on Domain & Inputs
   const phases: RoadmapPhase[] = buildDomainPhases(domain, state, isBeginner, isAdvanced, known, skippedTopics, learningStyle);
+
+  // Automatically enrich every milestone with domain-specific pedagogical detail
+  for (const phase of phases) {
+    for (const lesson of phase.lessons) {
+      const detailed = getDetailedLessonModule(lesson, phase);
+      lesson.keyObjectives = detailed.keyObjectives;
+      lesson.codeSnippet = detailed.codeBlueprint.code;
+      lesson.resources = detailed.resources.map((r) => ({
+        title: r.title,
+        url: r.url,
+        type: r.type,
+      }));
+    }
+  }
 
   // Recalculate completions, current lesson and locked statuses
   let totalLessons = 0;

@@ -16,9 +16,33 @@ class Settings(BaseSettings):
     # AI Model Gateway & Google API
     GOOGLE_API_KEY: str | None = None
     GEMINI_API_KEY: str | None = None
-    DEFAULT_MODEL: str = "gemini-2.5-flash"
-    TEACHER_MODEL: str = "gemini-2.5-pro"
-    JUDGE_MODEL: str = "gemini-2.5-pro"
+    GOOGLE_API_KEYS: str | list[str] | None = None
+    DEFAULT_MODEL: str = "gemini-3.5-flash"
+    TEACHER_MODEL: str = "gemini-3.5-flash"
+    JUDGE_MODEL: str = "gemini-3.5-flash"
+
+    @property
+    def api_keys(self) -> list[str]:
+        """Returns the list of configured Google/Gemini API keys, deduplicated."""
+        keys: list[str] = []
+        if isinstance(self.GOOGLE_API_KEYS, str):
+            for k in self.GOOGLE_API_KEYS.split(","):
+                clean = k.strip()
+                if clean and clean not in keys:
+                    keys.append(clean)
+        elif isinstance(self.GOOGLE_API_KEYS, (list, tuple, set)):
+            for k in self.GOOGLE_API_KEYS:
+                clean = str(k).strip()
+                if clean and clean not in keys:
+                    keys.append(clean)
+
+        for single in (self.GOOGLE_API_KEY, self.GEMINI_API_KEY):
+            if single:
+                clean = single.strip()
+                if clean and clean not in keys:
+                    keys.append(clean)
+        return keys
+
 
     # Datastores
     MONGODB_URI: str = "mongodb://localhost:27017"

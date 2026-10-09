@@ -4,8 +4,10 @@ from typing import Any, Dict
 from app.config import settings
 from app.db.chroma_client import chroma_manager
 from app.db.connection import mongo_manager
+from app.db.coordinator import CrossStoreCoordinator
 from app.db.indexes import IndexManager
 from app.db.migrate_to_chroma import migrate_mongo_to_chroma
+from app.db.operations import DatabaseOperations
 from app.db.seeds import seed_skills
 
 logger = logging.getLogger("pathai.db.manager")
@@ -94,3 +96,34 @@ class DatabaseManager:
             "pathai_chat_collections": chat_stats,
             "chroma_collections": chroma_colls,
         }
+
+    @classmethod
+    async def audit(cls) -> Dict[str, Any]:
+        """Perform cross-collection data integrity verification."""
+        return await DatabaseOperations.verify_data_integrity()
+
+    @classmethod
+    async def telemetry(cls) -> Dict[str, Any]:
+        """Collect live datastore latency and volume telemetry."""
+        return await DatabaseOperations.collect_telemetry()
+
+    @classmethod
+    async def export_learner(cls, learner_id: str) -> Dict[str, Any]:
+        """Export comprehensive compliance bundle for a learner."""
+        return await DatabaseOperations.export_learner_bundle(learner_id)
+
+    @classmethod
+    async def create_backup(cls) -> Dict[str, Any]:
+        """Create a complete JSON backup snapshot."""
+        return await DatabaseOperations.create_backup()
+
+    @classmethod
+    async def restore_backup(cls, backup_data: Dict[str, Any]) -> Dict[str, int]:
+        """Restore datastores from backup data."""
+        return await DatabaseOperations.restore_backup(backup_data)
+
+    @classmethod
+    async def delete_learner(cls, learner_id: str) -> Dict[str, Any]:
+        """Permanently cascade delete all learner records across Atlas and Chroma."""
+        return await CrossStoreCoordinator.delete_learner_complete(learner_id)
+

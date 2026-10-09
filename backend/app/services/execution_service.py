@@ -164,8 +164,18 @@ class ExecutionService:
         # 1. Filter backend-allowed tools for this worker role
         allowed_tools = [
             t for t in task.requested_tools
-            if t in ["get_learner_context", "get_active_roadmap", "search_knowledge", "get_lesson_context", "get_evaluation_context", "fetch_profile", "fetch_lesson"]
+            if t in [
+                "get_learner_context",
+                "get_active_roadmap",
+                "search_knowledge",
+                "get_lesson_context",
+                "get_evaluation_context",
+                "fetch_profile",
+                "fetch_lesson",
+                "fetch_canonical_roadmap",
+            ]
         ]
+
 
         instruction = WorkerInstruction(
             task_id=task.task_id,
@@ -229,6 +239,35 @@ class ExecutionService:
 
     async def _run_worker_llm(self, instruction: WorkerInstruction, learner_id: str) -> WorkerResult:
         """Invokes specialist worker with ModelGateway or fallback structured generation."""
+        # 1. Execute authorized tools requested by worker
+        tool_outputs: Dict[str, Any] = {}
+        for tool_name in instruction.allowed_tools:
+            try:
+                args: Dict[str, Any] = {}
+                if tool_name == "fetch_canonical_roadmap":
+                    lower_obj = instruction.objective.lower()
+                    args["topic"] = "ai" if any(k in lower_obj for k in ["ai", "machine learning", "agent"]) else "python"
+                res = await self.tool_service.execute_tool(
+                    worker_role=instruction.worker_role,
+                    tool_name=tool_name,
+                    learner_id=learner_id,
+                    arguments=args,
+                )
+                tool_outputs[tool_name] = res
+            except Exception as e:
+                logger.warning("Worker tool execution %s failed: %s", tool_name, e)
+
+        # 2. Extract schema validator details for prompt guidance
+        from app.services.validation_service import SCHEMA_VALIDATORS
+        schema_model = SCHEMA_VALIDATORS.get(instruction.output_schema)
+        schema_guidance = ""
+        if schema_model:
+            schema_guidance = (
+                f"\nCRITICAL: The 'task_data' dictionary MUST strictly contain the fields required by '{instruction.output_schema}':\n"
+                f"{json.dumps(schema_model.model_json_schema(), default=str)}"
+            )
+
+        worker_result: Optional[WorkerResult] = None
         if gateway.is_available:
             try:
                 prompt = (
@@ -240,9 +279,12 @@ class ExecutionService:
                         evidence_refs=json.dumps(instruction.evidence_refs),
                         allowed_tools=json.dumps(instruction.allowed_tools),
                         output_schema=instruction.output_schema,
-                    )}\n\nGenerate structured JSON adhering to WorkerResult."
+                    )}\n\n"
+                    f"Authorized Tool Execution Results:\n{json.dumps(tool_outputs, default=str)}\n"
+                    f"{schema_guidance}\n\n"
+                    "Generate structured JSON adhering to WorkerResult."
                 )
-                return await gateway.generate_structured(
+                worker_result = await gateway.generate_structured(
                     prompt=prompt,
                     response_schema=WorkerResult,
                     model=settings.DEFAULT_MODEL,
@@ -250,15 +292,35 @@ class ExecutionService:
             except Exception as e:
                 logger.warning("Worker LLM call failed, falling back to deterministic result: %s", e)
 
-        # Fallback specialist generator based on schema
+        # 3. If worker_result generated and task_data passes schema check, return it
+        if worker_result and self.validation_service.validate_schema(instruction.output_schema, worker_result.task_data):
+            return worker_result
+
+        # 4. Synthesize authoritative specialist payload from canonical datasets or templates
         task_data: Dict[str, Any] = {}
         if instruction.output_schema == "RoadmapProposalPayload":
+            from app.core.curriculum.canonical_roadmaps import compile_canonical_curriculum
+            topic = "python"
+            lower_obj = instruction.objective.lower()
+            if any(k in lower_obj for k in ["ai", "machine learning", "agent", "data science"]):
+                topic = "ai"
+            assessed_skills = instruction.context_snapshot.get("assessed_skills", [])
+            prefs = instruction.context_snapshot.get("preferences", {})
+            weekly_hours = float(prefs.get("weekly_availability_hours", 5.0)) if isinstance(prefs, dict) and prefs.get("weekly_availability_hours") else 5.0
+            compiled = compile_canonical_curriculum(
+                topic=topic,
+                assessed_skills=assessed_skills,
+                weekly_hours=weekly_hours,
+            )
             task_data = {
-                "goal_id": "goal_default",
+                "goal_id": "goal_current",
                 "version": 1,
-                "phases": [{"phase": 1, "topic": instruction.objective}],
-                "prerequisites": [],
-                "rationale": "Automated curriculum proposal",
+                "phases": compiled["phases"],
+                "prerequisites": compiled["prerequisites"],
+                "rationale": compiled["rationale"],
+                "canonical_topic": compiled["canonical_topic"],
+                "canonical_ref": compiled["canonical_ref"],
+                "nodes": compiled["nodes"],
             }
         elif instruction.output_schema == "AssessmentDesignPayload":
             task_data = {
@@ -268,7 +330,7 @@ class ExecutionService:
                 "private_rubric_id": f"rub_{uuid.uuid4().hex[:8]}",
             }
         else:
-            task_data = {"topic": instruction.objective, "explanation": "Detailed explanation generated by worker."}
+            task_data = {"topic": instruction.objective, "explanation": "Detailed explanation generated by specialist worker."}
 
         return WorkerResult(
             task_id=instruction.task_id,
@@ -279,6 +341,7 @@ class ExecutionService:
             limitations=[],
             proposed_actions=[],
         )
+
 
     async def _run_judge_review(
         self,

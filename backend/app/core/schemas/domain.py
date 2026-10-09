@@ -50,6 +50,14 @@ class RoadmapMilestone(BaseSchema):
     skill_ids: List[str] = Field(default_factory=list)
     prerequisite_milestone_ids: List[str] = Field(default_factory=list)
     is_completed: bool = False
+    node_id: Optional[str] = None
+    parent_id: Optional[str] = None
+    prerequisites: List[str] = Field(default_factory=list)
+    category: Optional[str] = None
+    status: str = "not_started"
+    external_ref: Optional[str] = None
+    resources: List[Dict[str, str]] = Field(default_factory=list)
+    estimated_hours: float = 2.0
 
 
 class Roadmap(AuditableSchema):
@@ -58,7 +66,10 @@ class Roadmap(AuditableSchema):
     goal_id: str
     version: int = 1
     is_active: bool = True
+    canonical_topic: Optional[str] = None
+    canonical_ref: Optional[str] = None
     milestones: List[RoadmapMilestone] = Field(default_factory=list)
+
 
 
 class Proposal(AuditableSchema):

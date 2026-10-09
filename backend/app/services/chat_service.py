@@ -134,20 +134,27 @@ class ChatService:
         # 5. Check if task planning is warranted (e.g. curriculum, assessment, deep breakdown)
         lower_content = content.lower()
         if any(keyword in lower_content for keyword in ["syllabus", "curriculum", "create plan", "roadmap", "quiz me"]):
+            is_curriculum = "syllabus" in lower_content or "roadmap" in lower_content or "curriculum" in lower_content
+            requested_tools = ["fetch_profile", "fetch_canonical_roadmap"] if is_curriculum else ["fetch_profile"]
             plan_task = TaskItem(
                 task_id="task_1",
-                worker_role=WorkerRole.CURRICULUM if "syllabus" in lower_content or "roadmap" in lower_content else WorkerRole.ASSESSMENT_DESIGN,
+                worker_role=WorkerRole.CURRICULUM if is_curriculum else WorkerRole.ASSESSMENT_DESIGN,
                 objective=f"Plan specialized materials for: {content[:100]}",
                 dependencies=[],
-                requested_tools=["fetch_profile"],
-                output_schema="RoadmapProposalPayload" if "syllabus" in lower_content or "roadmap" in lower_content else "AssessmentDesignPayload",
+                requested_tools=requested_tools,
+                output_schema="RoadmapProposalPayload" if is_curriculum else "AssessmentDesignPayload",
             )
             task_plan = TaskPlan(
                 plan_id=f"plan_{uuid.uuid4().hex[:8]}",
                 overall_objective=f"Adaptive plan for: {content[:80]}",
-                master_instructions="Design structured scaffold for learner progression.",
+                master_instructions=(
+                    "Compile structured scaffold from canonical roadmap.sh DAG tailored to learner diagnostics and availability."
+                    if is_curriculum
+                    else "Design structured scaffold for learner progression."
+                ),
                 tasks=[plan_task],
             )
+
             # Execute plan through ExecutionService (workers, tools, judge review, and deterministic validation)
             run = await self.execution_service.execute_plan(task_plan, learner_id, context)
             run_id = run.run_id

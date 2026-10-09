@@ -20,12 +20,18 @@ from app.db.models.core import (
     LearnerSkillModel,
     LessonProgressModel,
     LessonVersionModel,
+    NotificationModel,
     PreferenceModel,
+    ProjectModel,
     ProposalModel,
+    ReviewItemModel,
     RoadmapModel,
     RoadmapVersionModel,
+    SandboxExecutionModel,
     SkillEvidenceModel,
+    StudyPlanModel,
     StudySessionModel,
+    SubmissionModel,
 )
 from app.db.repositories.chat import ChatRepository
 from app.db.repositories.core import (
@@ -33,9 +39,12 @@ from app.db.repositories.core import (
     DocumentRepository,
     LearnerRepository,
     LessonRepository,
+    NotificationRepository,
+    ProjectRepository,
     ProposalRepository,
     RoadmapRepository,
     SkillRepository,
+    StudyPlanRepository,
 )
 
 logger = logging.getLogger("pathai.db.worker")
@@ -69,6 +78,9 @@ class DatabaseWorker:
         self.assessment_repo = AssessmentRepository(self.core_db)
         self.document_repo = DocumentRepository(self.core_db)
         self.proposal_repo = ProposalRepository(self.core_db)
+        self.project_repo = ProjectRepository(self.core_db)
+        self.study_plan_repo = StudyPlanRepository(self.core_db)
+        self.notification_repo = NotificationRepository(self.core_db)
         self.chat_repo = ChatRepository(self.chat_db)
 
     def _verify_tool_permission(self, tool_name: str, tool_group: ToolGroup) -> None:
@@ -380,3 +392,121 @@ class DatabaseWorker:
             status="proposed",
         )
         return await self.proposal_repo.create_proposal(proposal)
+
+    # =========================================================================
+    # Phase 2, 5 & 6: Artifacts, Computation & Sandbox Execution
+    # =========================================================================
+
+    async def get_project_details(self, project_id: str) -> Optional[ProjectModel]:
+        """Fetch project briefs, requirements, and targeted skills for mentoring."""
+        self._verify_tool_permission("get_project_details", ToolGroup.ARTIFACTS)
+        return await self.project_repo.get_project(project_id)
+
+    async def evaluate_project_submission(
+        self,
+        submission_id: str,
+        project_id: str,
+        status: str,
+        rubric_feedback: Dict[str, Any],
+        skill_evaluations: List[Dict[str, Any]],
+        revision: int = 1,
+    ) -> Dict[str, Any]:
+        """Evaluate a project submission, record rubric feedback and verified skill evidence."""
+        self._verify_tool_permission("evaluate_project_submission", ToolGroup.ASSESSMENT)
+
+        sub = SubmissionModel(
+            submission_id=submission_id,
+            learner_id=self.learner_id,
+            project_id=project_id,
+            revision=revision,
+            rubric_feedback=rubric_feedback,
+            status=status,
+        )
+        saved_sub = await self.project_repo.save_submission(sub)
+
+        evidence_ids = []
+        for se in skill_evaluations:
+            skill_id = se["skill_id"]
+            ev_score = float(se.get("score", 85.0))
+            ev = SkillEvidenceModel(
+                evidence_id=f"ev_proj_{submission_id}_{skill_id}",
+                learner_id=self.learner_id,
+                skill_id=skill_id,
+                source_type="project",
+                source_id=submission_id,
+                score=ev_score,
+                misconceptions=se.get("misconceptions", []),
+                verification_state="verified",
+                observed_at=utc_now(),
+                dedupe_key=f"proj_{submission_id}_{skill_id}",
+            )
+            saved_ev = await self.skill_repo.record_evidence_idempotent(ev)
+            evidence_ids.append(saved_ev.evidence_id)
+            await self.skill_repo.recompute_mastery(self.learner_id, skill_id)
+
+        return {
+            "submission_id": saved_sub.submission_id,
+            "status": saved_sub.status,
+            "evidence_count": len(evidence_ids),
+        }
+
+    async def record_sandbox_execution(
+        self,
+        execution_id: str,
+        runtime: str,
+        limits: Dict[str, Any],
+        exit_code: int,
+        stdout: str,
+        stderr: str,
+        status: str,
+        submission_id: Optional[str] = None,
+        run_id: Optional[str] = None,
+    ) -> SandboxExecutionModel:
+        """Record the captured output and exit status of isolated learner code execution."""
+        self._verify_tool_permission("record_sandbox_execution", ToolGroup.COMPUTATION)
+
+        rec = SandboxExecutionModel(
+            execution_id=execution_id,
+            learner_id=self.learner_id,
+            submission_id=submission_id,
+            run_id=run_id,
+            runtime=runtime,
+            limits=limits,
+            exit_code=exit_code,
+            stdout=stdout,
+            stderr=stderr,
+            status=status,
+        )
+        return await self.project_repo.record_sandbox_execution(rec)
+
+    async def get_active_study_plan_and_reviews(self) -> Dict[str, Any]:
+        """Fetch active study schedule and due review items for adaptive pacing."""
+        self._verify_tool_permission("get_active_study_plan_and_reviews", ToolGroup.LEARNER_RECORDS)
+
+        plan = await self.study_plan_repo.get_active_plan(self.learner_id)
+        due_reviews = await self.study_plan_repo.get_due_reviews(self.learner_id, utc_now())
+
+        return {
+            "active_plan": plan.model_dump() if plan else None,
+            "due_reviews": [r.model_dump() for r in due_reviews],
+        }
+
+    async def create_learner_notification(
+        self,
+        notification_id: str,
+        type: str,
+        payload: Dict[str, Any],
+        dedupe_key: Optional[str] = None,
+    ) -> NotificationModel:
+        """Create a scheduled or immediate learner notification with duplicate prevention."""
+        self._verify_tool_permission("create_learner_notification", ToolGroup.LEARNER_RECORDS)
+
+        notif = NotificationModel(
+            notification_id=notification_id,
+            learner_id=self.learner_id,
+            type=type,
+            payload=payload,
+            dedupe_key=dedupe_key,
+        )
+        return await self.notification_repo.create_notification(notif)
+

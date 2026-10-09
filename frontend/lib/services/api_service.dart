@@ -92,10 +92,57 @@ class ApiService {
   static Future<Map<String, dynamic>?> getActiveRoadmap() async {
     final res = await http.get(Uri.parse("$baseUrl/roadmaps/active"), headers: _headers);
     if (res.statusCode == 200) {
+      final body = jsonDecode(res.body);
+      if (body != null && body["roadmap_id"] != null) {
+        final version = body["active_version"] ?? 1;
+        final vRes = await http.get(
+          Uri.parse("$baseUrl/roadmaps/${body["roadmap_id"]}/versions/$version"),
+          headers: _headers,
+        );
+        if (vRes.statusCode == 200) {
+          final vData = jsonDecode(vRes.body);
+          body["milestones"] = vData["milestones"] ?? [];
+          body["canonical_topic"] = vData["canonical_topic"];
+          body["canonical_ref"] = vData["canonical_ref"];
+          body["rationale"] = vData["rationale"];
+        }
+      }
+      return body;
+    }
+    return null;
+  }
+
+  static Future<Map<String, dynamic>?> getCanonicalRoadmap(String topic) async {
+    final res = await http.get(Uri.parse("$baseUrl/roadmaps/canonical/$topic"), headers: _headers);
+    if (res.statusCode == 200) {
       return jsonDecode(res.body);
     }
     return null;
   }
+
+  static Future<Map<String, dynamic>> startMilestoneLesson(String milestoneId, [String? roadmapId]) async {
+    final query = roadmapId != null ? "?roadmap_id=$roadmapId" : "";
+    final res = await http.post(
+      Uri.parse("$baseUrl/roadmaps/milestones/$milestoneId/lesson$query"),
+      headers: _headers,
+    );
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body);
+    }
+    throw Exception("Failed to start milestone lesson: ${res.statusCode}");
+  }
+
+  static Future<void> updateLessonProgress(String lessonId, String status) async {
+    final res = await http.post(
+      Uri.parse("$baseUrl/lessons/$lessonId/progress"),
+      headers: _headers,
+      body: jsonEncode({"status": status}),
+    );
+    if (res.statusCode != 200) {
+      throw Exception("Failed to update lesson progress");
+    }
+  }
+
 
   // --- Assessments ---
   static Future<List<dynamic>> getAssessments() async {

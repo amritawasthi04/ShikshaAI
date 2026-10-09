@@ -77,6 +77,14 @@ class RoadmapMilestoneModel(MongoBaseModel):
     skill_ids: List[str] = Field(default_factory=list)
     prerequisite_milestone_ids: List[str] = Field(default_factory=list)
     is_completed: bool = False
+    node_id: Optional[str] = None
+    parent_id: Optional[str] = None
+    prerequisites: List[str] = Field(default_factory=list)
+    category: Optional[str] = None
+    status: str = "not_started"
+    external_ref: Optional[str] = None
+    resources: List[Dict[str, str]] = Field(default_factory=list)
+    estimated_hours: float = 2.0
 
 
 class RoadmapModel(MongoBaseModel):
@@ -86,6 +94,8 @@ class RoadmapModel(MongoBaseModel):
     active_version: int = 1
     status: str = "active"  # proposed, active, completed, archived
     is_active: bool = True
+    canonical_topic: Optional[str] = None
+    canonical_ref: Optional[str] = None
 
 
 class RoadmapVersionModel(MongoBaseModel):
@@ -94,6 +104,8 @@ class RoadmapVersionModel(MongoBaseModel):
     learner_id: str
     version: int = 1
     milestones: List[Dict[str, Any]] = Field(default_factory=list)
+    canonical_topic: Optional[str] = None
+    canonical_ref: Optional[str] = None
     rationale: str = ""
     is_accepted: bool = False
 
@@ -105,9 +117,13 @@ class LessonVersionModel(MongoBaseModel):
     version: int = 1
     milestone_id: str
     title: str
+    node_id: Optional[str] = None
+    prerequisites_completed: List[str] = Field(default_factory=list)
     content_blocks: List[Dict[str, Any]] = Field(default_factory=list)
     exercises: List[Dict[str, Any]] = Field(default_factory=list)
     sources: List[str] = Field(default_factory=list)
+    external_ref: Optional[str] = None
+    resources: List[Dict[str, str]] = Field(default_factory=list)
 
 
 class LessonProgressModel(MongoBaseModel):

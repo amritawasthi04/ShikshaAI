@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { authService } from "@/services/authService";
 import { roadmapService, initialPathBuilderState } from "@/services/roadmapService";
-import { PathBuilderState } from "@/types/roadmap";
+import { PathBuilderState, SkillCategoriesResponse, SkillCategoryItem } from "@/types/roadmap";
 import {
   Sparkles,
   ArrowRight,
@@ -26,6 +27,15 @@ import {
   BookOpen,
   Layers,
   CheckCircle2,
+  Terminal,
+  Shield,
+  Activity,
+  Zap,
+  Search,
+  Layout,
+  Server,
+  Filter,
+  RefreshCw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -40,6 +50,12 @@ export default function BuildPathPage() {
   const [generationPhase, setGenerationPhase] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
+
+  // Dynamic skill taxonomy state updated automatically based on user preferences
+  const [skillTaxonomy, setSkillTaxonomy] = useState<SkillCategoriesResponse | null>(null);
+  const [isLoadingSkills, setIsLoadingSkills] = useState(false);
+  const [selectedCategoryTab, setSelectedCategoryTab] = useState<string>("all");
+  const [skillSearchQuery, setSkillSearchQuery] = useState("");
 
   // Suggested Goals for Step 1
   const suggestedGoals = [
@@ -109,29 +125,76 @@ export default function BuildPathPage() {
     "Tech Enthusiast / Hobbyist",
   ];
 
-  // Predefined skill chips for Step 3
-  const availableSkills = [
-    "JavaScript",
-    "TypeScript",
-    "React",
-    "Next.js",
-    "Node.js",
-    "Python",
-    "SQL / PostgreSQL",
-    "HTML5 & CSS3",
-    "Tailwind CSS",
-    "Git & GitHub",
-    "Docker",
-    "REST APIs",
-    "GraphQL",
-    "MongoDB",
-    "Redis",
-    "AWS",
-    "Java",
-    "C++",
-    "Linux / Bash",
-    "Data Structures",
+  // Fallback initial categories for Step 3
+  const defaultCategories: SkillCategoryItem[] = [
+    {
+      id: "frontend_ui",
+      name: "Frontend & UI Frameworks",
+      icon: "layout",
+      description: "Modern component libraries, reactive state, and client rendering.",
+      skills: ["React", "Next.js", "TypeScript", "JavaScript", "HTML5 & CSS3", "Tailwind CSS", "Vue.js"],
+      recommended: ["React", "Next.js", "TypeScript", "Tailwind CSS"],
+    },
+    {
+      id: "backend_apis",
+      name: "Backend & API Architecture",
+      icon: "server",
+      description: "Server-side logic, routing, REST/GraphQL standards, and microservices.",
+      skills: ["Node.js", "Express", "REST APIs", "GraphQL", "FastAPI", "NestJS"],
+      recommended: ["Node.js", "REST APIs"],
+    },
+    {
+      id: "databases_storage",
+      name: "Databases & Caching",
+      icon: "database",
+      description: "Relational and document storage, in-memory caches, and query tuning.",
+      skills: ["PostgreSQL", "MongoDB", "Redis", "Prisma ORM", "MySQL", "SQLite"],
+      recommended: ["PostgreSQL", "MongoDB", "Redis"],
+    },
+    {
+      id: "devops_tooling",
+      name: "DevOps & Tooling",
+      icon: "terminal",
+      description: "Version control, container virtualization, and cloud delivery pipelines.",
+      skills: ["Git & GitHub", "Docker", "AWS", "Vercel", "CI/CD Pipelines", "Linux / Bash"],
+      recommended: ["Git & GitHub", "Docker"],
+    },
   ];
+
+  // Active categories derived from backend/edge taxonomy based on user preferences
+  const currentCategories: SkillCategoryItem[] = useMemo(() => {
+    return skillTaxonomy?.categories && skillTaxonomy.categories.length > 0
+      ? skillTaxonomy.categories
+      : defaultCategories;
+  }, [skillTaxonomy]);
+
+  const allTaxonomySkills = useMemo(() => {
+    return Array.from(new Set(currentCategories.flatMap((c) => c.skills)));
+  }, [currentCategories]);
+
+  // Track any custom user-added skills that are not part of the active taxonomy categories
+  const customSkills = useMemo(() => {
+    return formData.knownSkills.filter((s) => !allTaxonomySkills.includes(s));
+  }, [formData.knownSkills, allTaxonomySkills]);
+
+  // Compute filtered categories based on active tab and search query
+  const displayedCategories = useMemo(() => {
+    let cats = currentCategories;
+    if (selectedCategoryTab !== "all") {
+      cats = cats.filter((c) => c.id === selectedCategoryTab);
+    }
+    if (skillSearchQuery.trim()) {
+      const q = skillSearchQuery.toLowerCase();
+      cats = cats
+        .map((c) => ({
+          ...c,
+          skills: c.skills.filter((s) => s.toLowerCase().includes(q)),
+        }))
+        .filter((c) => c.skills.length > 0);
+    }
+    return cats;
+  }, [currentCategories, selectedCategoryTab, skillSearchQuery]);
+
 
   // Learning styles for Step 4
   const learningStyles = [
@@ -161,6 +224,35 @@ export default function BuildPathPage() {
       setTimeout(() => setHasRestoredDraft(false), 4000);
     }
   }, []);
+
+  // Dynamically update skill categories whenever learner enters or modifies preferences, goal, or role
+  useEffect(() => {
+    let isCancelled = false;
+    const updateCategories = async () => {
+      setIsLoadingSkills(true);
+      try {
+        const response = await roadmapService.fetchSkillCategories({
+          goal: formData.goal,
+          targetRole: formData.targetRole,
+          experienceLevel: formData.experienceLevel,
+          background: formData.background,
+        });
+        if (!isCancelled && response) {
+          setSkillTaxonomy(response);
+        }
+      } catch (err) {
+        console.warn("Failed to update skill categories:", err);
+      } finally {
+        if (!isCancelled) setIsLoadingSkills(false);
+      }
+    };
+
+    updateCategories();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [formData.goal, formData.targetRole, formData.experienceLevel, formData.background]);
 
   // Save draft whenever formData changes
   const updateFormData = (updates: Partial<PathBuilderState>) => {
@@ -255,6 +347,64 @@ export default function BuildPathPage() {
     router.push("/dashboard");
   };
 
+  const handleSelectAllInCategory = (categorySkills: string[]) => {
+    if (formData.isCompleteBeginner) {
+      updateFormData({ isCompleteBeginner: false });
+    }
+    const current = new Set(formData.knownSkills);
+    const allSelected = categorySkills.length > 0 && categorySkills.every((s) => current.has(s));
+    if (allSelected) {
+      const remaining = formData.knownSkills.filter((s) => !categorySkills.includes(s));
+      updateFormData({ knownSkills: remaining });
+    } else {
+      categorySkills.forEach((s) => current.add(s));
+      updateFormData({ knownSkills: Array.from(current) });
+    }
+  };
+
+  const handleClearAllSkills = () => {
+    updateFormData({ knownSkills: [] });
+  };
+
+  const handleRemoveSingleSkill = (skill: string) => {
+    updateFormData({
+      knownSkills: formData.knownSkills.filter((s) => s !== skill),
+    });
+  };
+
+  const renderCategoryIcon = (iconName: string, className = "w-4 h-4") => {
+    switch (iconName) {
+      case "layout":
+        return <Layout className={className} />;
+      case "server":
+        return <Server className={className} />;
+      case "database":
+        return <Database className={className} />;
+      case "terminal":
+        return <Terminal className={className} />;
+      case "cpu":
+        return <Cpu className={className} />;
+      case "brain":
+        return <BrainCircuit className={className} />;
+      case "sparkles":
+        return <Sparkles className={className} />;
+      case "cloud":
+        return <Cloud className={className} />;
+      case "layers":
+        return <Layers className={className} />;
+      case "smartphone":
+        return <Smartphone className={className} />;
+      case "shield":
+        return <Shield className={className} />;
+      case "activity":
+        return <Activity className={className} />;
+      case "zap":
+        return <Zap className={className} />;
+      default:
+        return <Code2 className={className} />;
+    }
+  };
+
   const handleToggleSkill = (skill: string) => {
     if (formData.isCompleteBeginner) {
       updateFormData({ isCompleteBeginner: false });
@@ -301,6 +451,37 @@ export default function BuildPathPage() {
     }, 1000);
 
     try {
+      // Synchronously record user preferences and skills in authService (persisting to localStorage & MongoDB Atlas)
+      const mappedLearningStyle =
+        formData.learningStyle === "project-first"
+          ? "hands-on"
+          : formData.learningStyle === "deep-theory"
+          ? "reading"
+          : "balanced";
+
+      const mappedStudyPace =
+        formData.weeklyPace === "casual"
+          ? "relaxed"
+          : formData.weeklyPace === "intensive"
+          ? "intensive"
+          : "recommended";
+
+      const mappedTargetHours =
+        formData.weeklyPace === "casual"
+          ? 5
+          : formData.weeklyPace === "intensive"
+          ? 20
+          : 10;
+
+      authService.updateLearningPreferences({
+        targetGoal: formData.goal.trim() || formData.targetRole || "Custom Engineering Track",
+        experienceLevel: (formData.experienceLevel as any) || "intermediate",
+        knownSkills: formData.isCompleteBeginner ? [] : formData.knownSkills,
+        learningStyle: mappedLearningStyle,
+        studyPace: mappedStudyPace,
+        weeklyTargetHours: mappedTargetHours,
+      });
+
       await roadmapService.generateRoadmap(formData);
       router.push("/dashboard");
     } catch {
@@ -583,23 +764,48 @@ export default function BuildPathPage() {
           </div>
         )}
 
-        {/* STEP 3: SKILLS */}
+        {/* STEP 3: SKILLS (DYNAMIC CATEGORIES ADAPTED TO PREFERENCES) */}
         {formData.currentStep === 3 && (
           <div>
-            <div className="mb-6">
+            <div className="mb-4">
               <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#54252C]">
                 Step 3 of 4
               </span>
               <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827] mt-1">
                 Which technologies or skills do you already know?
               </h2>
-              <p className="text-sm text-[#292827]/75 mt-1.5 font-sans">
-                Select your existing knowledge so we can optimize module prerequisites.
+              <p className="text-sm text-[#292827]/75 mt-1 font-sans">
+                Categories and suggestions are automatically personalized based on your learning goals.
               </p>
             </div>
 
+            {/* Dynamic Domain Context Badge */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-5 p-3 rounded-[8px] bg-[#D8C8BA]/25 border border-[#D8C8BA]">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-[6px] bg-[#54252C] text-[#F6F1E9]">
+                  <Sparkles size={14} />
+                </div>
+                <div className="text-xs text-[#292827]">
+                  <span>Tailored categories for: </span>
+                  <strong className="text-[#54252C] font-semibold">
+                    {skillTaxonomy?.domain_title || "Full-Stack Web Development"}
+                  </strong>
+                  <span className="opacity-75">
+                    {" "}• {formData.experienceLevel ? `${formData.experienceLevel.toUpperCase()} level` : "Calibrated"}
+                  </span>
+                </div>
+              </div>
+
+              {isLoadingSkills && (
+                <div className="flex items-center gap-1.5 text-xs text-[#54252C]">
+                  <RefreshCw size={12} className="animate-spin" />
+                  <span>Updating categories...</span>
+                </div>
+              )}
+            </div>
+
             {/* Complete Beginner Option */}
-            <div className="mb-6">
+            <div className="mb-5">
               <label className="flex items-center gap-3 p-3.5 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9] cursor-pointer hover:bg-[#D8C8BA]/20 transition-colors">
                 <input
                   type="checkbox"
@@ -613,69 +819,308 @@ export default function BuildPathPage() {
                   }}
                   className="accent-[#54252C] w-4 h-4 rounded"
                 />
-                <span className="text-sm font-medium text-[#292827]">
-                  I am a complete beginner (skip known skills & start from scratch)
-                </span>
+                <div>
+                  <span className="text-sm font-medium text-[#292827]">
+                    I am a complete beginner (skip known skills & start from scratch)
+                  </span>
+                  <p className="text-xs text-[#292827]/65 mt-0.5">
+                    We will include foundational syntax, environment setup, and fundamental concepts.
+                  </p>
+                </div>
               </label>
             </div>
 
-            {/* Selectable Skill Chips */}
+            {/* Categorized Skills Section */}
             <div
               className={`transition-opacity duration-200 ${
                 formData.isCompleteBeginner ? "opacity-40 pointer-events-none" : ""
               }`}
             >
-              <p className="text-xs font-semibold text-[#292827]/70 uppercase tracking-wider mb-3">
-                Click to select known skills:
-              </p>
+              {/* Category Search & Filter Bar */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 mb-4">
+                <div className="relative flex-1">
+                  <Search
+                    size={15}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#292827]/50"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Search skills in this domain (e.g. React, Docker, Python, SQL)..."
+                    value={skillSearchQuery}
+                    onChange={(e) => setSkillSearchQuery(e.target.value)}
+                    className="w-full bg-[#F6F1E9] text-[#292827] placeholder:text-[#292827]/45 text-xs sm:text-sm rounded-[8px] border border-[#D8C8BA] pl-9 pr-8 py-2.5 focus:outline-none focus:border-[#54252C]"
+                  />
+                  {skillSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSkillSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#292827]/50 hover:text-[#292827]"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
 
-              <div className="flex flex-wrap gap-2.5 mb-6">
-                {availableSkills.map((skill) => {
-                  const isSelected = formData.knownSkills.includes(skill);
+                {formData.knownSkills.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearAllSkills}
+                    className="text-xs text-[#54252C] hover:underline px-2 py-1 font-medium whitespace-nowrap self-end sm:self-center"
+                  >
+                    Clear all ({formData.knownSkills.length})
+                  </button>
+                )}
+              </div>
+
+              {/* Category Filter Tabs */}
+              <div className="flex flex-wrap items-center gap-1.5 mb-5 pb-1 border-b border-[#D8C8BA]/60">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategoryTab("all")}
+                  className={`px-3 py-1.5 rounded-[6px] text-xs font-medium transition-all ${
+                    selectedCategoryTab === "all"
+                      ? "bg-[#54252C] text-[#F6F1E9] shadow-2xs"
+                      : "bg-[#F6F1E9] border border-[#D8C8BA] text-[#292827] hover:border-[#54252C]"
+                  }`}
+                >
+                  All Categories ({allTaxonomySkills.length})
+                </button>
+
+                {currentCategories.map((cat) => {
+                  const selectedInCat = cat.skills.filter((s) =>
+                    formData.knownSkills.includes(s)
+                  ).length;
+                  const isActive = selectedCategoryTab === cat.id;
+
                   return (
                     <button
-                      key={skill}
+                      key={cat.id}
                       type="button"
-                      onClick={() => handleToggleSkill(skill)}
-                      className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[6px] text-xs sm:text-sm font-medium transition-all duration-150 select-none ${
-                        isSelected
-                          ? "bg-[#54252C] text-[#F6F1E9] border border-[#54252C] shadow-2xs scale-[1.02]"
-                          : "bg-[#F6F1E9] border border-[#D8C8BA] text-[#292827] hover:border-[#54252C] hover:bg-[#D8C8BA]/30"
+                      onClick={() => setSelectedCategoryTab(cat.id)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-medium transition-all ${
+                        isActive
+                          ? "bg-[#54252C] text-[#F6F1E9] shadow-2xs"
+                          : "bg-[#F6F1E9] border border-[#D8C8BA] text-[#292827] hover:border-[#54252C]"
                       }`}
                     >
-                      {isSelected && <Check size={14} strokeWidth={2.5} />}
-                      <span>{skill}</span>
+                      <span>{cat.name}</span>
+                      {selectedInCat > 0 && (
+                        <span
+                          className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                            isActive
+                              ? "bg-[#F6F1E9] text-[#54252C]"
+                              : "bg-[#54252C] text-[#F6F1E9]"
+                          }`}
+                        >
+                          {selectedInCat}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
               </div>
 
-              {/* Add Custom Skill Tag */}
-              <form onSubmit={handleAddCustomSkill} className="flex gap-2">
+              {/* Grouped Category Cards */}
+              <div className="space-y-4 mb-6">
+                {displayedCategories.map((cat) => {
+                  const catSkills = cat.skills;
+                  const selectedInCat = catSkills.filter((s) =>
+                    formData.knownSkills.includes(s)
+                  ).length;
+                  const isAllSelected =
+                    catSkills.length > 0 &&
+                    catSkills.every((s) => formData.knownSkills.includes(s));
+
+                  return (
+                    <div
+                      key={cat.id}
+                      className="p-4 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9]/40 hover:bg-[#F6F1E9] transition-colors"
+                    >
+                      {/* Category Header */}
+                      <div className="flex flex-wrap items-start sm:items-center justify-between gap-2 mb-3 pb-2.5 border-b border-[#D8C8BA]/40">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-1.5 rounded-[6px] bg-[#54252C]/10 text-[#54252C]">
+                            {renderCategoryIcon(cat.icon, "w-4 h-4")}
+                          </div>
+                          <div>
+                            <h3 className="font-sans font-semibold text-sm text-[#292827]">
+                              {cat.name}
+                            </h3>
+                            <p className="text-xs text-[#292827]/65">
+                              {cat.description}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-end sm:self-center">
+                          <span className="text-[11px] font-medium text-[#292827]/70">
+                            {selectedInCat} of {catSkills.length} selected
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectAllInCategory(catSkills)}
+                            className="text-xs text-[#54252C] hover:underline font-medium px-1.5 py-0.5 rounded"
+                          >
+                            {isAllSelected ? "Deselect category" : "Select category"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Skill Chips in this category */}
+                      <div className="flex flex-wrap gap-2">
+                        {catSkills.map((skill) => {
+                          const isSelected = formData.knownSkills.includes(skill);
+                          const isRecommended = cat.recommended?.includes(skill);
+
+                          return (
+                            <button
+                              key={skill}
+                              type="button"
+                              onClick={() => handleToggleSkill(skill)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-medium transition-all duration-150 select-none ${
+                                isSelected
+                                  ? "bg-[#54252C] text-[#F6F1E9] border border-[#54252C] shadow-2xs scale-[1.02]"
+                                  : "bg-[#F6F1E9] border border-[#D8C8BA] text-[#292827] hover:border-[#54252C] hover:bg-[#D8C8BA]/30"
+                              }`}
+                            >
+                              {isSelected ? (
+                                <Check size={13} strokeWidth={2.5} />
+                              ) : (
+                                isRecommended && (
+                                  <span
+                                    className="w-1.5 h-1.5 rounded-full bg-[#54252C]/60"
+                                    title="Recommended for your level"
+                                  />
+                                )
+                              )}
+                              <span>{skill}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* If searching and no skills matched */}
+                {displayedCategories.length === 0 && (
+                  <div className="text-center py-8 px-4 rounded-[8px] border border-dashed border-[#D8C8BA]">
+                    <p className="text-sm text-[#292827]/70">
+                      No skills match &quot;{skillSearchQuery}&quot; in this domain.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setSkillSearchQuery("")}
+                      className="mt-2 text-xs text-[#54252C] underline font-medium"
+                    >
+                      Reset search filter
+                    </button>
+                  </div>
+                )}
+
+                {/* Custom User-Added Skills Card (if any exist) */}
+                {customSkills.length > 0 && (
+                  <div className="p-4 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9]/40">
+                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#D8C8BA]/40">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-[6px] bg-[#54252C]/10 text-[#54252C]">
+                          <Plus size={14} />
+                        </div>
+                        <div>
+                          <h3 className="font-sans font-semibold text-sm text-[#292827]">
+                            Custom & Added Skills
+                          </h3>
+                          <p className="text-xs text-[#292827]/65">
+                            Additional technologies you entered manually.
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-medium text-[#292827]/70">
+                        {customSkills.length} added
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {customSkills.map((cSkill) => (
+                        <span
+                          key={cSkill}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-medium bg-[#54252C] text-[#F6F1E9] border border-[#54252C]"
+                        >
+                          <Check size={13} strokeWidth={2.5} />
+                          <span>{cSkill}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSingleSkill(cSkill)}
+                            className="ml-0.5 hover:opacity-75"
+                            title="Remove custom skill"
+                          >
+                            <X size={12} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Add Custom Skill Form */}
+              <form onSubmit={handleAddCustomSkill} className="flex gap-2 mb-6">
                 <input
                   type="text"
-                  placeholder="Add custom skill (e.g. NextAuth, Tailwind, Rust)..."
+                  placeholder="Add any additional skill (e.g. NextAuth, WebGL, Rust, Polars)..."
                   value={customSkillInput}
                   onChange={(e) => setCustomSkillInput(e.target.value)}
-                  className="flex-1 bg-[#F6F1E9] text-[#292827] placeholder:text-[#292827]/40 text-sm rounded-[8px] border border-[#D8C8BA] px-3.5 py-2 focus:outline-none focus:border-[#54252C]"
+                  className="flex-1 bg-[#F6F1E9] text-[#292827] placeholder:text-[#292827]/40 text-xs sm:text-sm rounded-[8px] border border-[#D8C8BA] px-3.5 py-2.5 focus:outline-none focus:border-[#54252C]"
                 />
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-1 px-4 py-2 rounded-[8px] border border-[#54252C] text-[#54252C] text-xs sm:text-sm font-medium hover:bg-[#54252C]/5 transition-colors"
+                  className="inline-flex items-center gap-1 px-4 py-2.5 rounded-[8px] border border-[#54252C] text-[#54252C] text-xs sm:text-sm font-medium hover:bg-[#54252C]/5 transition-colors whitespace-nowrap"
                 >
                   <Plus size={15} />
-                  <span>Add</span>
+                  <span>Add Skill</span>
                 </button>
               </form>
 
-              {/* Selected Count Indicator */}
-              <div className="mt-4 text-xs text-[#292827]/70">
-                {formData.knownSkills.length > 0 ? (
-                  <span>
-                    Selected: <strong>{formData.knownSkills.join(", ")}</strong>
+              {/* Selected Skills Summary Drawer */}
+              <div className="p-4 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9]/70">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-[#292827] uppercase tracking-wider">
+                    Selected Knowledge ({formData.knownSkills.length}):
                   </span>
+                  {formData.knownSkills.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAllSkills}
+                      className="text-xs text-[#54252C] hover:underline font-medium"
+                    >
+                      Deselect all
+                    </button>
+                  )}
+                </div>
+
+                {formData.knownSkills.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {formData.knownSkills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[4px] text-xs bg-[#54252C]/10 text-[#54252C] border border-[#54252C]/20"
+                      >
+                        <span>{skill}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSingleSkill(skill)}
+                          className="hover:text-[#292827]"
+                          title="Remove"
+                        >
+                          <X size={11} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
                 ) : (
-                  <span>No skills selected yet.</span>
+                  <p className="text-xs text-[#292827]/60 italic">
+                    No skills selected yet. Click skills in the categories above or select &quot;Complete Beginner&quot;.
+                  </p>
                 )}
               </div>
             </div>

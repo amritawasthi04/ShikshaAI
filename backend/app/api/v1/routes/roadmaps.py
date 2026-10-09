@@ -16,12 +16,14 @@ router = APIRouter(tags=["Roadmaps & Lessons"])
 
 
 @router.get("/roadmaps", response_model=Optional[RoadmapModel])
+@router.get("/roadmaps/active", response_model=Optional[RoadmapModel])
 async def get_active_roadmap(
     learner_id: str = Depends(get_current_learner_id),
     service: RoadmapService = Depends(get_roadmap_service),
 ):
     """Fetch active roadmap for current learner."""
     return await service.get_active_roadmap(learner_id)
+
 
 
 @router.post("/roadmaps", response_model=RoadmapModel, status_code=status.HTTP_201_CREATED)
@@ -110,3 +112,31 @@ async def record_study_session(
         active_seconds=req.active_seconds,
         measurement_source=req.measurement_source,
     )
+
+
+@router.get("/roadmaps/canonical/{topic}")
+async def get_canonical_roadmap_tree(
+    topic: str,
+    service: RoadmapService = Depends(get_roadmap_service),
+):
+    """Fetch authoritative roadmap.sh tree and prerequisite DAG."""
+    tree = await service.get_canonical_tree(topic)
+    if not tree:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Canonical roadmap for '{topic}' not found")
+    return tree
+
+
+@router.post("/roadmaps/milestones/{milestone_id}/lesson", response_model=LessonVersionModel)
+async def start_or_generate_milestone_lesson(
+    milestone_id: str,
+    roadmap_id: Optional[str] = Query(None),
+    learner_id: str = Depends(get_current_learner_id),
+    service: RoadmapService = Depends(get_roadmap_service),
+):
+    """Start or compile a grounded lesson strictly focused on a canonical roadmap node."""
+    return await service.start_or_generate_lesson_for_node(
+        learner_id=learner_id,
+        milestone_id=milestone_id,
+        roadmap_id=roadmap_id,
+    )
+

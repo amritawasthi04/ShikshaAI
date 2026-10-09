@@ -11,6 +11,7 @@ from app.db.repositories.core import (
     StudyPlanRepository,
     ProposalRepository,
     ExecutionRepository,
+    NotificationRepository,
 )
 from app.db.repositories.chat import ChatRepository
 from app.db.repositories.vector import ChromaVectorRepository
@@ -27,6 +28,7 @@ __all__ = [
     "StudyPlanRepository",
     "ProposalRepository",
     "ExecutionRepository",
+    "NotificationRepository",
     "ChatRepository",
     "ChromaVectorRepository",
 ]
