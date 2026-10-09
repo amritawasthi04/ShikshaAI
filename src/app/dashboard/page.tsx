@@ -44,6 +44,8 @@ export default function DashboardPage() {
     return roadmapService.getActiveRoadmap();
   });
 
+  const [allRoadmaps, setAllRoadmaps] = useState<GeneratedRoadmap[]>([]);
+
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(() => {
     const r = roadmapService.getActiveRoadmap();
     return roadmapService.getDashboardMetrics(r, 12);
@@ -52,28 +54,43 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [hasExplicitPath, setHasExplicitPath] = useState(true);
 
-  // Sync latest persisted data from localStorage on mount
+  // Sync latest persisted data from localStorage on mount and on roadmap events
   useEffect(() => {
-    try {
-      const currentUser = authService.getCurrentUser();
-      setUser(currentUser);
+    const refreshData = () => {
+      try {
+        const currentUser = authService.getCurrentUser();
+        setUser(currentUser);
 
-      const isExplicit = roadmapService.hasExplicitRoadmap();
-      setHasExplicitPath(isExplicit);
+        const isExplicit = roadmapService.hasExplicitRoadmap();
+        setHasExplicitPath(isExplicit);
 
-      const activeRoadmap = roadmapService.getActiveRoadmap();
-      setRoadmap(activeRoadmap);
+        const activeRoadmap = roadmapService.getActiveRoadmap();
+        setRoadmap(activeRoadmap);
+        setAllRoadmaps(roadmapService.getAllSavedRoadmaps());
 
-      if (activeRoadmap) {
-        const computedMetrics = roadmapService.getDashboardMetrics(
-          activeRoadmap,
-          currentUser?.streakDays || 12
-        );
-        setMetrics(computedMetrics);
+        if (activeRoadmap) {
+          const computedMetrics = roadmapService.getDashboardMetrics(
+            activeRoadmap,
+            currentUser?.streakDays || 12
+          );
+          setMetrics(computedMetrics);
+        }
+      } catch (e) {
+        console.error("Failed to load dashboard data:", e);
       }
-    } catch (e) {
-      console.error("Failed to load dashboard data:", e);
-    }
+    };
+
+    refreshData();
+
+    window.addEventListener("shiksha_roadmap_switched" as any, refreshData);
+    window.addEventListener("shiksha_roadmap_updated" as any, refreshData);
+    window.addEventListener("shiksha_profile_updated" as any, refreshData);
+
+    return () => {
+      window.removeEventListener("shiksha_roadmap_switched" as any, refreshData);
+      window.removeEventListener("shiksha_roadmap_updated" as any, refreshData);
+      window.removeEventListener("shiksha_profile_updated" as any, refreshData);
+    };
   }, []);
 
   // Handler to toggle lesson completion directly from dashboard with immediate reactive update
@@ -152,10 +169,58 @@ export default function DashboardPage() {
           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#54252C] hover:bg-[#803F47] text-[#F6F1E9] text-xs sm:text-sm font-medium transition-colors shadow-2xs"
         >
           <Sparkles size={15} className="text-[#D8C8BA]" />
-          <span>Build New Path</span>
+          <span>Build Another Path</span>
         </Link>
       }
     >
+      {/* Multi-Roadmaps Switcher Bar */}
+      {allRoadmaps.length > 1 && (
+        <div className="mb-6 p-4 rounded-xl border border-[#D8C8BA] bg-white shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#54252C]/10 text-[#54252C] flex items-center justify-center shrink-0">
+              <Route size={16} />
+            </div>
+            <div>
+              <span className="text-xs font-semibold text-[#292827] block">
+                Active Learning Track ({allRoadmaps.length} Roadmaps Available)
+              </span>
+              <span className="text-[11px] text-[#292827]/60">
+                Switch your active track below to view tailored progress and milestones.
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <select
+              value={roadmap.id}
+              onChange={(e) => {
+                const switched = roadmapService.switchActiveRoadmap(e.target.value);
+                if (switched) {
+                  setRoadmap(switched);
+                  const computed = roadmapService.getDashboardMetrics(
+                    switched,
+                    user?.streakDays || 12
+                  );
+                  setMetrics(computed);
+                }
+              }}
+              className="bg-[#F6F1E9] text-xs font-semibold text-[#292827] rounded-lg border border-[#D8C8BA] px-3 py-1.5 focus:outline-none focus:border-[#54252C] shadow-2xs"
+            >
+              {allRoadmaps.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.title} ({r.progressPercent}% Done)
+                </option>
+              ))}
+            </select>
+            <Link
+              href="/build-path"
+              className="text-xs font-semibold text-[#54252C] hover:text-[#803F47] hover:underline px-2 py-1 shrink-0"
+            >
+              + New Path
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* 1. Personalized Greeting Banner */}
       <div className="p-6 sm:p-8 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] mb-8 relative overflow-hidden shadow-2xs">
         <div className="relative z-10 max-w-2xl">

@@ -41,6 +41,8 @@ export default function ProgressPage() {
     return roadmapService.getActiveRoadmap();
   });
 
+  const [allRoadmaps, setAllRoadmaps] = useState<GeneratedRoadmap[]>([]);
+
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(() => {
     const r = roadmapService.getActiveRoadmap();
     return roadmapService.getDashboardMetrics(r, 12);
@@ -48,21 +50,35 @@ export default function ProgressPage() {
 
   const [timeFilter, setTimeFilter] = useState<"week" | "month" | "all">("week");
 
-  // Load from localStorage upon mount
+  // Load from localStorage upon mount and on roadmap switch events
   useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    setUser(currentUser);
+    const refreshData = () => {
+      const currentUser = authService.getCurrentUser();
+      setUser(currentUser);
 
-    const activeRoadmap = roadmapService.getActiveRoadmap();
-    setRoadmap(activeRoadmap);
+      const activeRoadmap = roadmapService.getActiveRoadmap();
+      const all = roadmapService.getAllSavedRoadmaps();
+      setRoadmap(activeRoadmap);
+      setAllRoadmaps(all);
 
-    if (activeRoadmap) {
-      const computed = roadmapService.getDashboardMetrics(
-        activeRoadmap,
-        currentUser?.streakDays || 12
-      );
-      setMetrics(computed);
-    }
+      if (activeRoadmap) {
+        const computed = roadmapService.getDashboardMetrics(
+          activeRoadmap,
+          currentUser?.streakDays || 12
+        );
+        setMetrics(computed);
+      }
+    };
+
+    refreshData();
+
+    window.addEventListener("shiksha_roadmap_switched" as any, refreshData);
+    window.addEventListener("shiksha_roadmap_updated" as any, refreshData);
+
+    return () => {
+      window.removeEventListener("shiksha_roadmap_switched" as any, refreshData);
+      window.removeEventListener("shiksha_roadmap_updated" as any, refreshData);
+    };
   }, []);
 
   // If no roadmap exists (Empty State)
@@ -169,15 +185,72 @@ export default function ProgressPage() {
       pageTitle="Progress & Analytics"
       pageSubtitle="Comprehensive, real-time insights into your learning velocity, curriculum phase progression, and skill mastery."
       actionElement={
-        <Link
-          href="/learning-path"
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#54252C] hover:bg-[#803F47] text-[#F6F1E9] text-xs sm:text-sm font-medium transition-colors shadow-2xs"
-        >
-          <span>Resume Active Path</span>
-          <ArrowRight size={14} />
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/build-path"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[8px] border border-[#54252C] text-[#54252C] hover:bg-[#54252C]/5 text-xs font-medium transition-colors"
+          >
+            <Sparkles size={14} />
+            <span>New Path</span>
+          </Link>
+          <Link
+            href="/learning-path"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#54252C] hover:bg-[#803F47] text-[#F6F1E9] text-xs font-medium transition-colors shadow-2xs"
+          >
+            <span>Resume Active Path</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
       }
     >
+      {/* Multi-Roadmaps Switcher Bar */}
+      {allRoadmaps.length > 1 && (
+        <div className="mb-6 p-4 rounded-xl border border-[#D8C8BA] bg-white shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#54252C]/10 text-[#54252C] flex items-center justify-center shrink-0">
+              <Route size={16} />
+            </div>
+            <div>
+              <span className="text-xs font-semibold text-[#292827] block">
+                Analytics Track ({allRoadmaps.length} Roadmaps Available)
+              </span>
+              <span className="text-[11px] text-[#292827]/60">
+                Switch active track to view velocity and mastery statistics for different roadmaps.
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <select
+              value={roadmap.id}
+              onChange={(e) => {
+                const switched = roadmapService.switchActiveRoadmap(e.target.value);
+                if (switched) {
+                  setRoadmap(switched);
+                  const computed = roadmapService.getDashboardMetrics(
+                    switched,
+                    user?.streakDays || 12
+                  );
+                  setMetrics(computed);
+                }
+              }}
+              className="bg-[#F6F1E9] text-xs font-semibold text-[#292827] rounded-lg border border-[#D8C8BA] px-3 py-1.5 focus:outline-none focus:border-[#54252C] shadow-2xs"
+            >
+              {allRoadmaps.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.title} ({r.progressPercent}% Done)
+                </option>
+              ))}
+            </select>
+            <Link
+              href="/build-path"
+              className="text-xs font-semibold text-[#54252C] hover:text-[#803F47] hover:underline px-2 py-1 shrink-0"
+            >
+              + Add Path
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* 1. Overall Completion & Core Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-6 mb-8">
         {/* Card 1: Overall Path Completion */}

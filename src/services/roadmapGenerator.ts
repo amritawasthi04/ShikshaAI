@@ -10,7 +10,11 @@ import {
  * Tailors curriculum phases, milestones, lessons, and prerequisites
  * based on user goals, experience level, known skills, and learning style.
  */
-export function generatePersonalizedRoadmap(state: PathBuilderState): GeneratedRoadmap {
+export function generatePersonalizedRoadmap(
+  state: PathBuilderState,
+  customId?: string,
+  customCreatedAt?: string
+): GeneratedRoadmap {
   const goalLower = (state.goal || state.targetRole || "").toLowerCase();
   const level = state.experienceLevel || "intermediate";
   const known = (state.knownSkills || []).map((s) => s.toLowerCase());
@@ -81,8 +85,14 @@ export function generatePersonalizedRoadmap(state: PathBuilderState): GeneratedR
 
   const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
+  const fallbackSlug = (state.goal || state.targetRole || "track")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "_");
+  const finalId = customId || `rdm_${fallbackSlug}`;
+  const finalCreatedAt = customCreatedAt || "2026-10-01T00:00:00.000Z";
+
   return {
-    id: "rdm_" + (state.goal || "track").toLowerCase().replace(/[^a-z0-9]/g, "_"),
+    id: finalId,
     title: state.goal || state.targetRole || "Personalized Engineering Roadmap",
     targetRole: state.targetRole || state.goal || "Software Engineer",
     experienceLevel: state.experienceLevel || "Intermediate",
@@ -91,7 +101,7 @@ export function generatePersonalizedRoadmap(state: PathBuilderState): GeneratedR
     learningStyle: state.learningStyle || "Balanced",
     knownSkills: state.knownSkills || [],
     skippedTopics,
-    createdAt: "2026-10-09T00:00:00.000Z",
+    createdAt: finalCreatedAt,
     phases,
     totalLessons,
     completedLessons,

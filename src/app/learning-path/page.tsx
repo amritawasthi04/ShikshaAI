@@ -28,6 +28,7 @@ import {
   Eye,
   Layers,
   ChevronRight,
+  Route,
 } from "lucide-react";
 import { CountUp, AnimatedContent, AnimatedList } from "@/components/reactbits";
 
@@ -38,6 +39,7 @@ function LearningPathContent() {
   const [activeRoadmap, setActiveRoadmap] = useState<GeneratedRoadmap | null>(() => {
     return roadmapService.getActiveRoadmap();
   });
+  const [allRoadmaps, setAllRoadmaps] = useState<GeneratedRoadmap[]>([]);
 
   const [activeFilter, setActiveFilter] = useState<"all" | "in-progress" | "completed">("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,34 +53,49 @@ function LearningPathContent() {
 
   // Load from localStorage and handle query parameter on mount
   useEffect(() => {
-    const rdm = roadmapService.getActiveRoadmap();
-    if (rdm) {
-      setActiveRoadmap(rdm);
+    const refreshRoadmap = () => {
+      const rdm = roadmapService.getActiveRoadmap();
+      const all = roadmapService.getAllSavedRoadmaps();
+      setAllRoadmaps(all);
 
-      // Auto-expand in-progress phase by default
-      const initialExpanded: Record<number, boolean> = {};
-      rdm.phases.forEach((p) => {
-        if (p.status === "in-progress" || p.id === 1) {
-          initialExpanded[p.id] = true;
-        }
-      });
-      setExpandedPhases(initialExpanded);
+      if (rdm) {
+        setActiveRoadmap(rdm);
 
-      // If URL has ?lesson=xxx, open that lesson modal immediately
-      if (initialLessonParam) {
-        for (const phase of rdm.phases) {
-          const matched = phase.lessons.find((l) => l.id === initialLessonParam);
-          if (matched) {
-            setSelectedLesson(matched);
-            setSelectedPhase(phase);
-            setIsModalOpen(true);
-            initialExpanded[phase.id] = true;
-            setExpandedPhases({ ...initialExpanded });
-            break;
+        // Auto-expand in-progress phase by default
+        const initialExpanded: Record<number, boolean> = {};
+        rdm.phases.forEach((p) => {
+          if (p.status === "in-progress" || p.id === 1) {
+            initialExpanded[p.id] = true;
+          }
+        });
+        setExpandedPhases(initialExpanded);
+
+        // If URL has ?lesson=xxx, open that lesson modal immediately
+        if (initialLessonParam) {
+          for (const phase of rdm.phases) {
+            const matched = phase.lessons.find((l) => l.id === initialLessonParam);
+            if (matched) {
+              setSelectedLesson(matched);
+              setSelectedPhase(phase);
+              setIsModalOpen(true);
+              initialExpanded[phase.id] = true;
+              setExpandedPhases({ ...initialExpanded });
+              break;
+            }
           }
         }
       }
-    }
+    };
+
+    refreshRoadmap();
+
+    window.addEventListener("shiksha_roadmap_switched" as any, refreshRoadmap);
+    window.addEventListener("shiksha_roadmap_updated" as any, refreshRoadmap);
+
+    return () => {
+      window.removeEventListener("shiksha_roadmap_switched" as any, refreshRoadmap);
+      window.removeEventListener("shiksha_roadmap_updated" as any, refreshRoadmap);
+    };
   }, [initialLessonParam]);
 
   // Handle lesson completion toggle
@@ -251,13 +268,56 @@ function LearningPathContent() {
       actionElement={
         <Link
           href="/build-path"
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] border border-[#54252C] text-[#54252C] hover:bg-[#54252C]/5 text-xs sm:text-sm font-medium transition-colors"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#54252C] hover:bg-[#803F47] text-[#F6F1E9] text-xs sm:text-sm font-medium transition-colors shadow-2xs"
         >
-          <Sparkles size={15} />
-          <span>Recalibrate Path</span>
+          <Sparkles size={15} className="text-[#D8C8BA]" />
+          <span>Build Another Path</span>
         </Link>
       }
     >
+      {/* Multi-Roadmaps Switcher Bar */}
+      {allRoadmaps.length > 1 && (
+        <div className="mb-6 p-4 rounded-xl border border-[#D8C8BA] bg-white shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#54252C]/10 text-[#54252C] flex items-center justify-center shrink-0">
+              <Route size={16} />
+            </div>
+            <div>
+              <span className="text-xs font-semibold text-[#292827] block">
+                Select Active Learning Track ({allRoadmaps.length} Tracks)
+              </span>
+              <span className="text-[11px] text-[#292827]/60">
+                Switch the displayed curriculum to view different career specializations.
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <select
+              value={activeRoadmap.id}
+              onChange={(e) => {
+                const switched = roadmapService.switchActiveRoadmap(e.target.value);
+                if (switched) {
+                  setActiveRoadmap(switched);
+                }
+              }}
+              className="bg-[#F6F1E9] text-xs font-semibold text-[#292827] rounded-lg border border-[#D8C8BA] px-3 py-1.5 focus:outline-none focus:border-[#54252C] shadow-2xs"
+            >
+              {allRoadmaps.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.title} ({r.progressPercent}% Complete)
+                </option>
+              ))}
+            </select>
+            <Link
+              href="/build-path"
+              className="text-xs font-semibold text-[#54252C] hover:text-[#803F47] hover:underline px-2 py-1 shrink-0"
+            >
+              + Add Path
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* 1. Active Path Header Overview Card */}
       <AnimatedContent distance={15} delay={0.05}>
         <div className="p-6 sm:p-8 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] mb-8 shadow-2xs">

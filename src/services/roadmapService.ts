@@ -3,6 +3,7 @@ import { generatePersonalizedRoadmap } from "./roadmapGenerator";
 
 const DRAFT_STORAGE_KEY = "shiksha_build_path_draft";
 const ACTIVE_ROADMAP_KEY = "shiksha_active_roadmap";
+const ALL_ROADMAPS_KEY = "shiksha_all_saved_roadmaps";
 
 export const initialPathBuilderState: PathBuilderState = {
   goal: "",
@@ -52,12 +53,18 @@ export interface DashboardMetrics {
 
 class RoadmapService {
   /**
-   * Check if user has explicitly generated a custom roadmap
+   * Check if user has explicitly generated custom roadmap(s)
    */
   hasExplicitRoadmap(): boolean {
     if (typeof window === "undefined") return false;
     try {
-      return !!localStorage.getItem(ACTIVE_ROADMAP_KEY);
+      const active = localStorage.getItem(ACTIVE_ROADMAP_KEY);
+      const all = localStorage.getItem(ALL_ROADMAPS_KEY);
+      if (all) {
+        const parsed = JSON.parse(all);
+        if (Array.isArray(parsed) && parsed.length > 0) return true;
+      }
+      return !!active;
     } catch {
       return false;
     }
@@ -96,28 +103,40 @@ class RoadmapService {
    */
   clearDraft(): void {
     if (typeof window === "undefined") return;
-    localStorage.removeItem(DRAFT_STORAGE_KEY);
+    try {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    } catch (e) {
+      console.warn("Failed to clear draft:", e);
+    }
   }
 
   /**
-   * Generate and persist a new roadmap from builder answers
+   * Get all saved roadmaps for the current user
    */
-  async generateRoadmap(state: PathBuilderState): Promise<GeneratedRoadmap> {
-    // Brief generation feedback latency
-    await new Promise((resolve) => setTimeout(resolve, 1100));
-
-    const roadmap = generatePersonalizedRoadmap(state);
-
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem(ACTIVE_ROADMAP_KEY, JSON.stringify(roadmap));
-        this.clearDraft();
-      } catch (e) {
-        console.warn("Failed to save active roadmap:", e);
+  getAllSavedRoadmaps(): GeneratedRoadmap[] {
+    if (typeof window === "undefined") return [this.getDefaultRoadmap()];
+    try {
+      const allStored = localStorage.getItem(ALL_ROADMAPS_KEY);
+      if (allStored) {
+        const parsed = JSON.parse(allStored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
       }
+
+      // Check if there is an active roadmap that wasn't in all roadmaps yet
+      const activeStored = localStorage.getItem(ACTIVE_ROADMAP_KEY);
+      if (activeStored) {
+        const active = JSON.parse(activeStored);
+        const list = [active];
+        localStorage.setItem(ALL_ROADMAPS_KEY, JSON.stringify(list));
+        return list;
+      }
+    } catch (e) {
+      console.warn("Failed to retrieve all saved roadmaps:", e);
     }
 
-    return roadmap;
+    return [this.getDefaultRoadmap()];
   }
 
   /**
@@ -130,12 +149,132 @@ class RoadmapService {
       if (stored) {
         return JSON.parse(stored);
       }
+      const all = this.getAllSavedRoadmaps();
+      if (all.length > 0) {
+        return all[0];
+      }
     } catch (e) {
       console.warn("Failed to retrieve active roadmap:", e);
     }
 
-    // Return default initial roadmap if none generated yet
     return this.getDefaultRoadmap();
+  }
+
+  /**
+   * Switch the active roadmap by ID
+   */
+  switchActiveRoadmap(roadmapId: string): GeneratedRoadmap | null {
+    if (typeof window === "undefined") return null;
+    try {
+      const allRoadmaps = this.getAllSavedRoadmaps();
+      const found = allRoadmaps.find((r) => r.id === roadmapId);
+      if (found) {
+        localStorage.setItem(ACTIVE_ROADMAP_KEY, JSON.stringify(found));
+        window.dispatchEvent(
+          new CustomEvent("shiksha_roadmap_switched", { detail: found })
+        );
+        window.dispatchEvent(
+          new CustomEvent("shiksha_roadmap_updated", { detail: found })
+        );
+        return found;
+      }
+    } catch (e) {
+      console.warn("Failed to switch active roadmap:", e);
+    }
+    return null;
+  }
+
+  /**
+   * Save and synchronize active roadmap across storage
+   */
+  saveActiveRoadmap(roadmap: GeneratedRoadmap): void {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(ACTIVE_ROADMAP_KEY, JSON.stringify(roadmap));
+
+      // Update in all saved roadmaps collection
+      const allRoadmaps = this.getAllSavedRoadmaps();
+      const existingIdx = allRoadmaps.findIndex((r) => r.id === roadmap.id);
+      if (existingIdx >= 0) {
+        allRoadmaps[existingIdx] = roadmap;
+      } else {
+        allRoadmaps.unshift(roadmap);
+      }
+      localStorage.setItem(ALL_ROADMAPS_KEY, JSON.stringify(allRoadmaps));
+
+      window.dispatchEvent(
+        new CustomEvent("shiksha_roadmap_updated", { detail: roadmap })
+      );
+    } catch (e) {
+      console.warn("Failed to save active roadmap:", e);
+    }
+  }
+
+  /**
+   * Generate and persist a new roadmap from builder answers
+   */
+  async generateRoadmap(
+    state: PathBuilderState,
+    isAdditional: boolean = false
+  ): Promise<GeneratedRoadmap> {
+    // Brief generation feedback latency
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+
+    const slug = (state.goal || state.targetRole || "track")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "_");
+    const dynamicId = `rdm_${slug}_${Date.now()}`;
+    const dynamicCreatedAt = new Date().toISOString();
+
+    const roadmap = generatePersonalizedRoadmap(state, dynamicId, dynamicCreatedAt);
+
+    if (typeof window !== "undefined") {
+      try {
+        const allRoadmaps = this.getAllSavedRoadmaps();
+        // Add new roadmap without replacing previous ones
+        const updatedList = [roadmap, ...allRoadmaps.filter((r) => r.id !== roadmap.id)];
+        localStorage.setItem(ALL_ROADMAPS_KEY, JSON.stringify(updatedList));
+        localStorage.setItem(ACTIVE_ROADMAP_KEY, JSON.stringify(roadmap));
+
+        this.clearDraft();
+
+        window.dispatchEvent(
+          new CustomEvent("shiksha_roadmap_switched", { detail: roadmap })
+        );
+        window.dispatchEvent(
+          new CustomEvent("shiksha_roadmap_updated", { detail: roadmap })
+        );
+      } catch (e) {
+        console.warn("Failed to save generated roadmap:", e);
+      }
+    }
+
+    return roadmap;
+  }
+
+  /**
+   * Delete a saved roadmap
+   */
+  deleteRoadmap(roadmapId: string): GeneratedRoadmap | null {
+    if (typeof window === "undefined") return null;
+    try {
+      const allRoadmaps = this.getAllSavedRoadmaps();
+      const filtered = allRoadmaps.filter((r) => r.id !== roadmapId);
+      localStorage.setItem(ALL_ROADMAPS_KEY, JSON.stringify(filtered));
+
+      const active = this.getActiveRoadmap();
+      if (active.id === roadmapId) {
+        const nextActive = filtered.length > 0 ? filtered[0] : this.getDefaultRoadmap();
+        localStorage.setItem(ACTIVE_ROADMAP_KEY, JSON.stringify(nextActive));
+        window.dispatchEvent(
+          new CustomEvent("shiksha_roadmap_switched", { detail: nextActive })
+        );
+        return nextActive;
+      }
+    } catch (e) {
+      console.warn("Failed to delete roadmap:", e);
+    }
+    return null;
   }
 
   /**
@@ -189,7 +328,7 @@ class RoadmapService {
       const phaseTotal = phase.lessons.length;
       const score = phaseTotal > 0 ? Math.round((phaseCompleted / phaseTotal) * 100) : 0;
       const cleanSkillName = phase.title.replace(/^Phase \d+:\s*/, "");
-      
+
       let level: "Not Started" | "Developing" | "Proficient" | "Mastered" = "Not Started";
       if (score === 100) {
         level = "Mastered";
@@ -224,14 +363,12 @@ class RoadmapService {
         ? "3 - 5 hrs / week"
         : "8 - 12 hrs / week";
 
-    // Convert completed minutes to hours formatted nicely
     const completedHoursFromLessons = Math.round((totalCompletedMinutes / 60) * 10) / 10;
     const weeklyStudyHours = Math.min(
       Math.max(completedHoursFromLessons, 0.5),
       weeklyTargetHours
     );
 
-    // If total projects is 0, count quizzes as practical milestone evaluations
     if (totalProjectsCount === 0) {
       for (const phase of roadmap.phases) {
         for (const lesson of phase.lessons) {
@@ -243,7 +380,7 @@ class RoadmapService {
       }
     }
 
-    // Contextual Next Recommendation with Clear Explanation
+    // Contextual Next Recommendation
     let nextRecommendation: RecommendationInfo | null = null;
     if (nextIncompleteLesson && nextIncompletePhase) {
       let reason = "Essential next step to build foundational competencies for your target goal.";
@@ -348,13 +485,7 @@ class RoadmapService {
     roadmap.currentLesson = currentLesson;
     roadmap.currentPhase = currentPhase || roadmap.phases[0];
 
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem(ACTIVE_ROADMAP_KEY, JSON.stringify(roadmap));
-      } catch (e) {
-        console.warn("Failed to update active roadmap:", e);
-      }
-    }
+    this.saveActiveRoadmap(roadmap);
 
     return roadmap;
   }
@@ -414,38 +545,36 @@ class RoadmapService {
       completed: false,
       status: "upcoming",
       isUserAdded: true,
-      keyObjectives: resource.objectives,
-      codeSnippet: resource.codePreview,
-      resources: [
-        {
-          title: `${resource.title} — Official Documentation`,
-          url: resource.externalUrl || "https://developer.mozilla.org",
-          type: "documentation",
-        },
-        {
-          title: "Interactive Code Sandbox Repository",
-          url: "https://github.com",
-          type: "repository",
-        },
+      keyObjectives: resource.objectives || [
+        `Master fundamental concepts of ${resource.title}`,
+        "Apply knowledge with hands-on practice",
       ],
+      resources: resource.externalUrl
+        ? [
+            {
+              title: `${resource.title} Official Resource`,
+              url: resource.externalUrl,
+              type: "documentation",
+            },
+          ]
+        : undefined,
+      codeSnippet: resource.codePreview,
     };
 
-    // 3. Find target phase (Phase 4: Practice & Projects or Phase 3: Advanced Topics)
-    let targetPhase = roadmap.phases.find((p) => p.id === 4) || roadmap.phases.find((p) => p.id === 3) || roadmap.phases[roadmap.phases.length - 1];
+    // 3. Find appropriate target phase
+    let targetPhase = roadmap.phases.find(
+      (p) => p.phaseName === "Practice & Projects" || p.phaseName === "Advanced Topics"
+    );
+    if (!targetPhase && roadmap.phases.length > 0) {
+      targetPhase = roadmap.phases[roadmap.phases.length - 1];
+    }
 
     if (!targetPhase) {
-      targetPhase = {
-        id: roadmap.phases.length + 1,
-        phaseNumber: roadmap.phases.length + 1,
-        phaseName: "Practice & Projects",
-        title: "Phase 4: Practice, Projects & Custom Electives",
-        description: "Hands-on projects and user-selected custom elective milestones.",
-        status: "locked",
-        lessonsCount: 0,
-        completedLessons: 0,
-        lessons: [],
+      return {
+        success: false,
+        message: "No active phase available to append resource.",
+        roadmap,
       };
-      roadmap.phases.push(targetPhase);
     }
 
     targetPhase.lessons.push(newLesson);
@@ -465,13 +594,7 @@ class RoadmapService {
     roadmap.completedLessons = completedLessons;
     roadmap.progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem(ACTIVE_ROADMAP_KEY, JSON.stringify(roadmap));
-      } catch (e) {
-        console.warn("Failed to persist added resource to roadmap:", e);
-      }
-    }
+    this.saveActiveRoadmap(roadmap);
 
     return {
       success: true,
@@ -485,7 +608,13 @@ class RoadmapService {
    */
   clearRoadmap(): void {
     if (typeof window === "undefined") return;
-    localStorage.removeItem(ACTIVE_ROADMAP_KEY);
+    try {
+      localStorage.removeItem(ACTIVE_ROADMAP_KEY);
+      localStorage.removeItem(ALL_ROADMAPS_KEY);
+      window.dispatchEvent(new CustomEvent("shiksha_roadmap_updated"));
+    } catch (e) {
+      console.warn("Failed to clear roadmaps:", e);
+    }
   }
 
   /**
