@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shiksha-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=production
+      - MONGODB_URI=${MONGODB_URI}
+      - MONGODB_CORE_DB=pathai_core
+      - MONGODB_CHAT_DB=pathai_chat
+      - CHROMA_HOST=${CHROMA_HOST:-api.trychroma.com}
+      - CHROMA_API_KEY=${CHROMA_API_KEY}
+      - CHROMA_TENANT=${CHROMA_TENANT}
+      - CHROMA_DATABASE=${CHROMA_DATABASE:-shikshaPathSi}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - IS_READY=true
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: shiksha-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  default:
+    name: shiksha-network

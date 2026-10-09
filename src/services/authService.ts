@@ -127,6 +127,13 @@ class AuthService {
         window.dispatchEvent(
           new CustomEvent("shiksha_profile_updated", { detail: updated })
         );
+
+        // Asynchronously synchronize profile with backend database
+        fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "update_profile", profile: updated }),
+        }).catch((e) => console.warn("Backend profile sync deferred:", e));
       } catch (e) {
         console.warn("Failed to save user profile:", e);
       }
@@ -200,6 +207,13 @@ class AuthService {
       window.dispatchEvent(
         new CustomEvent("shiksha_profile_updated", { detail: newUser })
       );
+
+      // Asynchronously synchronize new student with backend database
+      fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "signup", data, profile: newUser }),
+      }).catch((e) => console.warn("Backend signup sync deferred:", e));
     }
 
     return {
@@ -258,6 +272,13 @@ class AuthService {
       window.dispatchEvent(
         new CustomEvent("shiksha_profile_updated", { detail: loggedUser })
       );
+
+      // Asynchronously synchronize student session with backend database
+      fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "signin", data, profile: loggedUser }),
+      }).catch((e) => console.warn("Backend signin sync deferred:", e));
     }
 
     return {

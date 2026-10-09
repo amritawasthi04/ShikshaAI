@@ -89,3 +89,23 @@ export interface GeneratedRoadmap {
   currentLesson?: RoadmapLesson | null;
   currentPhase?: RoadmapPhase | null;
 }
+
+export interface SkillCategoryItem {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  skills: string[];
+  recommended: string[];
+}
+
+export interface SkillCategoriesResponse {
+  domain_id: string;
+  domain_title: string;
+  description: string;
+  target_role: string;
+  experience_level: string;
+  categories: SkillCategoryItem[];
+  all_skills: string[];
+  recommended_skills: string[];
+}
