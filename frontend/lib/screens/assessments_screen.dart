@@ -137,7 +137,7 @@ class _AssessmentsScreenState extends State<AssessmentsScreen> {
                                 ],
                               ),
                             );
-                          }).toList(),
+                          }),
                           const SizedBox(height: 8),
                           SizedBox(
                             width: double.infinity,
