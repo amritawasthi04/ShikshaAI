@@ -28,6 +28,9 @@ async def create_adaptation_proposal(
     return await service.create_proposal(learner_id, req)
 
 
+from app.core.errors.exceptions import ConflictError, PathAIException
+
+
 @router.post("/{proposal_id}/decision")
 async def decide_proposal(
     proposal_id: str,
@@ -44,6 +47,6 @@ async def decide_proposal(
     )
     if not res.get("success"):
         if res.get("status") == "conflict":
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=res.get("error"))
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Could not process proposal decision")
+            raise ConflictError(res.get("error", "Optimistic concurrency conflict"))
+        raise PathAIException(message="Could not process proposal decision", status_code=400, error_code="BAD_REQUEST")
     return res
