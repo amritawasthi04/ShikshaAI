@@ -21,17 +21,70 @@ const caveat = Caveat({
   display: "swap",
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://shikshaai.com";
+
 export const metadata: Metadata = {
-  title: "Shiksha Path SI — Your Learning Journey, Guided by AI",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "ShikshaAI — Intelligent Adaptive Learning Roadmaps & AI Tutoring",
+    template: "%s | ShikshaAI",
+  },
   description:
-    "AI-powered personalized learning platform that helps students learn through adaptive roadmaps, AI tutoring, practice exercises, assessments, and progress tracking.",
+    "ShikshaAI is an intelligent, personalized learning platform that creates adaptive technical roadmaps, milestone curriculum, AI tutoring, and real-time skill analytics.",
   keywords: [
-    "Shiksha Path SI",
-    "AI tutor",
-    "personalized roadmaps",
-    "adaptive learning",
-    "learning platform",
+    "ShikshaAI",
+    "Shiksha Path",
+    "AI Learning Platform",
+    "Adaptive Roadmaps",
+    "Personalized Learning",
+    "Developer Curriculum",
+    "Skill Analytics",
+    "Interactive Learning",
+    "AI Tutor",
+    "Full-Stack Roadmap",
+    "DSA Guide",
   ],
+  authors: [{ name: "ShikshaAI Team" }],
+  creator: "ShikshaAI",
+  publisher: "ShikshaAI",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "ShikshaAI — Intelligent Adaptive Learning Roadmaps & AI Tutoring",
+    description:
+      "ShikshaAI is an intelligent, personalized learning platform that helps students learn through adaptive roadmaps, AI tutoring, practice exercises, assessments, and progress tracking.",
+    url: "/",
+    siteName: "ShikshaAI",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ShikshaAI — Intelligent Adaptive Learning Roadmaps",
+    description:
+      "AI-powered personalized learning platform that helps students learn through adaptive roadmaps, AI tutoring, practice exercises, and progress tracking.",
+    creator: "@shikshaai",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
