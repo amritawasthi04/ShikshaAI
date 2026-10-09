@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ShikshaAI - Intelligent Learning & AI-Guided Career Roadmap Platform
 
-## Getting Started
+ShikshaAI is a modern, personalized AI-powered learning path and skill mastery platform built with Next.js, React 19, TypeScript, and Tailwind CSS.
 
-First, run the development server:
+## 🌟 Key Features
 
+- **Personalized Path Builder:** 4-step interactive onboarding wizard that constructs custom multi-phase roadmaps based on experience level, available study pace, and goals.
+- **Dynamic Learning Dashboard:** Real-time tracking of milestones, weekly study hours, daily streaks, skill mastery metrics, and recommended next lessons.
+- **Learning Path & Milestone View:** Deep phase-by-phase breakdown with interactive lesson detail modals, code snippets, key learning objectives, and 1-click completion tracking.
+- **Resource Explorer:** Search and filter curated technologies, tutorials, capstone projects, and learning paths with 1-click "Add to Path" integration.
+- **Progress & Analytics:** Deep mastery analytics, streak momentum, phase completion charts, and learning history.
+- **Shiksha Bot (AI Chatbot):** Context-aware AI learning companion for concept explanations, tailored study schedules, and knowledge check quizzes with support for Google Gemini and OpenAI.
+- **Responsive Layout & Visual Theme:** Warm editorial aesthetic adhering to the 5-color brand system (Oxblood `#54252C`, Muted Wine `#803F47`, Chalk White `#F6F1E9`, Warm Stone `#D8C8BA`, Charcoal `#292827`) with full mobile/tablet/desktop responsiveness.
+
+## 🚀 Getting Started
+
+### 1. Install Dependencies
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Configure AI Provider (Optional)
+Create a `.env.local` file in the root directory if you wish to enable live LLM generation with Shiksha Bot:
+```env
+# Google Gemini 1.5 Flash (Recommended)
+GEMINI_API_KEY=your_gemini_api_key_here
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# Or OpenAI GPT-4o-mini
+OPENAI_API_KEY=your_openai_api_key_here
+```
+*(If no API keys are provided, Shiksha Bot automatically operates in the built-in Educational Demo Engine).*
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. Run the Development Server
+```bash
+npm run dev
+```
 
-## Learn More
+Open [http://localhost:3000](http://localhost:3000) in your browser to start exploring ShikshaAI.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🛠️ Tech Stack
+- **Framework:** Next.js (App Router, Turbopack)
+- **UI & Animation:** React 19, Tailwind CSS, Lucide React, Framer Motion, GSAP
+- **State & Data:** LocalStorage-backed reactive services with full cross-page synchronization
