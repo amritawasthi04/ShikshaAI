@@ -38,6 +38,7 @@ class CreateConversationRequest(BaseSchema):
 class SendMessageRequest(BaseSchema):
     content: str = Field(..., min_length=1)
     role: MessageRole = MessageRole.USER
+    idempotency_key: Optional[str] = None
 
 
 class TeacherChatResponse(BaseSchema):

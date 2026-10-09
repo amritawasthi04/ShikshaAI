@@ -8,6 +8,10 @@ from app.services.study_service import StudyService
 from app.services.proposal_service import ProposalService
 from app.services.execution_service import ExecutionService
 from app.services.chat_service import ChatService
+from app.services.context_service import ContextService
+from app.services.retrieval_service import RetrievalService
+from app.services.tool_service import ToolService
+from app.services.validation_service import ValidationService
 
 __all__ = [
     "LearnerService",
@@ -19,4 +23,8 @@ __all__ = [
     "ProposalService",
     "ExecutionService",
     "ChatService",
+    "ContextService",
+    "RetrievalService",
+    "ToolService",
+    "ValidationService",
 ]

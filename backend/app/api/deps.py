@@ -11,6 +11,10 @@ from app.services.study_service import StudyService
 from app.services.proposal_service import ProposalService
 from app.services.execution_service import ExecutionService
 from app.services.chat_service import ChatService
+from app.services.context_service import ContextService
+from app.services.retrieval_service import RetrievalService
+from app.services.tool_service import ToolService
+from app.services.validation_service import ValidationService
 
 
 from starlette.requests import Request
@@ -101,3 +105,24 @@ async def get_chat_service() -> ChatService:
     core_db = mongo_manager.get_core_db()
     chat_db = mongo_manager.get_chat_db()
     return ChatService(core_db, chat_db)
+
+
+async def get_context_service() -> ContextService:
+    core_db = mongo_manager.get_core_db()
+    chat_db = mongo_manager.get_chat_db()
+    return ContextService(core_db, chat_db)
+
+
+async def get_retrieval_service() -> RetrievalService:
+    core_db = mongo_manager.get_core_db()
+    return RetrievalService(core_db)
+
+
+async def get_tool_service() -> ToolService:
+    core_db = mongo_manager.get_core_db()
+    return ToolService(core_db)
+
+
+async def get_validation_service() -> ValidationService:
+    core_db = mongo_manager.get_core_db()
+    return ValidationService(core_db)

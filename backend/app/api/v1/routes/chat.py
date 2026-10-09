@@ -1,6 +1,6 @@
 """Chat and Teacher Brain tutoring endpoints."""
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from app.api.deps import get_chat_service, get_current_learner_id
 from app.core.schemas.api import CreateConversationRequest, SendMessageRequest, TeacherChatResponse
@@ -64,15 +64,18 @@ async def send_message_to_teacher(
     conversation_id: str,
     req: SendMessageRequest,
     learner_id: str = Depends(get_current_learner_id),
+    x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key"),
     service: ChatService = Depends(get_chat_service),
 ):
     """Send message to Teacher Brain (Elara) and receive grounded pedagogical response."""
     try:
+        idempotency = req.idempotency_key or x_idempotency_key
         return await service.send_message(
             learner_id=learner_id,
             conversation_id=conversation_id,
             content=req.content,
             role=req.role,
+            idempotency_key=idempotency,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

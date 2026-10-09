@@ -334,7 +334,12 @@ class ExecutionRepository:
         return await self.runs.update_one({"run_id": run_id}, {"status": status})
 
     async def create_task(self, task: TaskModel) -> TaskModel:
-        return await self.tasks.insert(task)
+        await self.tasks.update_one(
+            {"task_id": task.task_id},
+            task.model_dump(),
+            upsert=True,
+        )
+        return task
 
     async def save_judge_review(self, review: JudgeReviewModel) -> JudgeReviewModel:
         return await self.reviews.insert(review)
