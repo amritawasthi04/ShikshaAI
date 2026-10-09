@@ -26,7 +26,7 @@ class CitationModel(MongoBaseModel):
 class ChatMessageModel(MongoBaseModel):
     message_id: str
     conversation_id: str
-    sequence_number: int = Field(..., ge=1)
+    sequence_number: int = Field(default=0, ge=0)
     role: str  # user, assistant, system
     content: str
     run_id: Optional[str] = None

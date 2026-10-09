@@ -111,7 +111,7 @@ class LessonVersionModel(MongoBaseModel):
 
 
 class LessonProgressModel(MongoBaseModel):
-    progress_id: str
+    progress_id: str = Field(default_factory=lambda: f"prog_{uuid.uuid4().hex[:12]}")
     learner_id: str
     lesson_id: str
     active_version: int = 1

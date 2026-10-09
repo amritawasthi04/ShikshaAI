@@ -28,18 +28,18 @@ class Settings(BaseSettings):
     MONGODB_MIN_POOL_SIZE: int = 5
     MONGODB_TIMEOUT_MS: int = 5000
 
-    # Vector store (Qdrant)
-    QDRANT_HOST: str = "localhost"
-    QDRANT_PORT: int = 6333
-    QDRANT_URL: str | None = None
-    QDRANT_API_KEY: str | None = None
-    QDRANT_COLLECTION: str = "pathai_knowledge_passages"
-    VECTOR_DIMENSION: int = 768
+    # Vector store (Chroma Cloud)
+    CHROMA_HOST: str = "api.trychroma.com"
+    CHROMA_API_KEY: str | None = None
+    CHROMA_TENANT: str | None = None
+    CHROMA_DATABASE: str = "default"
+    CHROMA_PUBLIC_COLLECTION: str = "shiksha_public_knowledge"
+    CHROMA_MAX_DOCUMENT_BYTES: int = 16384  # 16 KiB document limit
 
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # Phase flag
-    IS_READY: bool = False
+    IS_READY: bool = True
 
 
 settings = Settings()

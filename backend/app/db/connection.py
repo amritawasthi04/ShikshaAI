@@ -1,4 +1,4 @@
-"""MongoDB connection and lifecycle management for pathai_core and pathai_chat."""
+import asyncio
 import logging
 import time
 from typing import Any, Dict, Optional
@@ -20,6 +20,30 @@ class MongoManager:
 
     @property
     def async_client(self) -> AsyncIOMotorClient:
+        if self._async_client is not None:
+            client_loop = getattr(self._async_client, "_io_loop", None)
+            is_closed = False
+            if client_loop is not None:
+                try:
+                    is_closed = client_loop.is_closed()
+                except Exception:
+                    is_closed = True
+
+            current_loop = None
+            try:
+                current_loop = asyncio.get_running_loop()
+            except RuntimeError:
+                pass
+
+            loop_mismatch = (current_loop is not None and client_loop is not None and client_loop != current_loop)
+
+            if is_closed or loop_mismatch:
+                try:
+                    self._async_client.close()
+                except Exception:
+                    pass
+                self._async_client = None
+
         if self._async_client is None:
             self.connect()
         return self._async_client

@@ -24,6 +24,14 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Attach Request Lifecycle & Tracing Middleware
+    from app.middleware.context import RequestContextMiddleware
+    application.add_middleware(RequestContextMiddleware)
+
+    # Register global sanitized error handlers (Section 12)
+    from app.core.errors.handlers import register_error_handlers
+    register_error_handlers(application)
+
     # Attach versioned routers
     application.include_router(api_v1_router, prefix=settings.API_V1_PREFIX)
 
@@ -33,7 +41,7 @@ def create_app() -> FastAPI:
         return {
             "app": settings.APP_NAME,
             "version": "0.1.0",
-            "phase": "Phase 0 - Scaffold",
+            "phase": "Phase 1 - Foundation",
             "docs": "/docs",
         }
 
