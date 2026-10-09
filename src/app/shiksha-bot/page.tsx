@@ -64,9 +64,10 @@ const INITIAL_GREETING: Message = {
   id: "initial-greeting",
   role: "assistant",
   content:
-    "Hi! I'm **Shiksha Bot**. How can I help you learn today?\n\nI can explain complex concepts in plain language, design tailored study roadmaps, recommend high-impact resources, or quiz you to test your mastery.",
+    "Hi! I'm **Shiksha Bot**, your 24/7 AI tutor and engineering guide. How can I help you learn today?\n\nI can explain complex concepts in plain language, write and debug code, design tailored study roadmaps, recommend high-impact resources, or quiz you to test your mastery.",
   timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-  provider: "Shiksha AI Engine",
+  provider: "Live AI Tutor",
+  isLiveAI: true,
 };
 
 export default function ShikshaBotPage() {
@@ -94,8 +95,8 @@ export default function ShikshaBotPage() {
     name: string;
     isLive: boolean;
   }>({
-    name: "Shiksha AI Engine",
-    isLive: false,
+    name: "Live AI Tutor (Gemini)",
+    isLive: true,
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);

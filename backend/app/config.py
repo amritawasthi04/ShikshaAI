@@ -17,9 +17,9 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str | None = None
     GEMINI_API_KEY: str | None = None
     GOOGLE_API_KEYS: str | list[str] | None = None
-    DEFAULT_MODEL: str = "gemini-3.5-flash"
-    TEACHER_MODEL: str = "gemini-3.5-flash"
-    JUDGE_MODEL: str = "gemini-3.5-flash"
+    DEFAULT_MODEL: str = "gemini-3.5-flash-lite"
+    TEACHER_MODEL: str = "gemini-3.5-flash-lite"
+    JUDGE_MODEL: str = "gemini-3.5-flash-lite"
 
     @property
     def api_keys(self) -> list[str]:
