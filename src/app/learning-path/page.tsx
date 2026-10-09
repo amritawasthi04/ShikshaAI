@@ -7,6 +7,8 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { roadmapService } from "@/services/roadmapService";
 import { GeneratedRoadmap, RoadmapPhase, RoadmapLesson } from "@/types/roadmap";
 import { LessonDetailModal } from "@/components/learning/LessonDetailModal";
+import { AssessmentModal } from "@/components/assessment/AssessmentModal";
+import { assessmentService } from "@/services/assessmentService";
 import {
   CheckCircle2,
   Circle,
@@ -29,6 +31,7 @@ import {
   Layers,
   ChevronRight,
   Route,
+  Award,
 } from "lucide-react";
 import { CountUp, AnimatedContent, AnimatedList } from "@/components/reactbits";
 
@@ -50,6 +53,11 @@ function LearningPathContent() {
   const [selectedLesson, setSelectedLesson] = useState<RoadmapLesson | null>(null);
   const [selectedPhase, setSelectedPhase] = useState<RoadmapPhase | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Assessment Modal State
+  const [selectedAssessmentPhase, setSelectedAssessmentPhase] = useState<RoadmapPhase | null>(null);
+  const [isAssessmentModalOpen, setIsAssessmentModalOpen] = useState(false);
+  const [assessmentsVersion, setAssessmentsVersion] = useState(0);
 
   // Load from localStorage and handle query parameter on mount
   useEffect(() => {
@@ -87,14 +95,22 @@ function LearningPathContent() {
       }
     };
 
+    const handleAssessmentChange = () => {
+      setAssessmentsVersion((v) => v + 1);
+    };
+
     refreshRoadmap();
 
     window.addEventListener("shiksha_roadmap_switched" as any, refreshRoadmap);
     window.addEventListener("shiksha_roadmap_updated" as any, refreshRoadmap);
+    window.addEventListener("shiksha_assessment_completed" as any, handleAssessmentChange);
+    window.addEventListener("shiksha_assessment_updated" as any, handleAssessmentChange);
 
     return () => {
       window.removeEventListener("shiksha_roadmap_switched" as any, refreshRoadmap);
       window.removeEventListener("shiksha_roadmap_updated" as any, refreshRoadmap);
+      window.removeEventListener("shiksha_assessment_completed" as any, handleAssessmentChange);
+      window.removeEventListener("shiksha_assessment_updated" as any, handleAssessmentChange);
     };
   }, [initialLessonParam]);
 
@@ -121,6 +137,12 @@ function LearningPathContent() {
     setSelectedLesson(lesson);
     setSelectedPhase(phase);
     setIsModalOpen(true);
+  };
+
+  // Open Assessment Modal for a Phase
+  const handleOpenAssessmentModal = (phase: RoadmapPhase) => {
+    setSelectedAssessmentPhase(phase);
+    setIsAssessmentModalOpen(true);
   };
 
   // Navigate to next lesson in modal
@@ -539,6 +561,12 @@ function LearningPathContent() {
           const isExpanded = !!expandedPhases[phase.id];
           const isCompleted = phase.status === "completed";
           const isInProgress = phase.status === "in-progress";
+          const isAllLessonsCompleted =
+            phase.completedLessons === phase.lessonsCount && phase.lessonsCount > 0;
+          const assessmentSummary = assessmentService.getPhaseAssessmentSummary(
+            activeRoadmap.id,
+            phase
+          );
 
           return (
             <div
@@ -574,11 +602,30 @@ function LearningPathContent() {
                   </div>
 
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
                       <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-[#54252C]">
                         {phase.phaseName || `Phase ${phase.phaseNumber}`}
                       </span>
+
+                      {/* Assessment Status Badge */}
+                      {assessmentSummary.passed ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          <CheckCircle2 size={10} />
+                          <span>Assessment Passed ({assessmentSummary.bestPercentage}%)</span>
+                        </span>
+                      ) : assessmentSummary.status === "retake" ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                          <RotateCcw size={10} />
+                          <span>Retake Assessment ({assessmentSummary.bestPercentage}%)</span>
+                        </span>
+                      ) : isAllLessonsCompleted ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#54252C]/15 text-[#54252C] border border-[#54252C]/30 animate-pulse">
+                          <Sparkles size={10} />
+                          <span>Assessment Available</span>
+                        </span>
+                      ) : null}
                     </div>
+
                     <h3 className="font-serif text-lg sm:text-xl font-semibold text-[#292827]">
                       {phase.title}
                     </h3>
@@ -627,7 +674,7 @@ function LearningPathContent() {
                           {/* Interactive Toggle Checkbox */}
                           <button
                             type="button"
-                            onClick={() => handleToggleLesson(lesson.id, !!isLessonDone)}
+                            onClick={() => handleToggleLesson(lesson.id, !isLessonDone)}
                             title={isLessonDone ? "Mark uncompleted" : "Mark completed"}
                             className="mt-0.5 p-0.5 rounded hover:bg-[#D8C8BA]/40 transition-colors"
                           >
@@ -742,6 +789,115 @@ function LearningPathContent() {
                       </div>
                     );
                   })}
+
+                  {/* Phase Mastery Assessment Card */}
+                  <div className="mt-4 pt-4 border-t-2 border-dashed border-[#D8C8BA] rounded-xl p-4 sm:p-5 bg-white border border-[#D8C8BA] shadow-2xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                            assessmentSummary.passed
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                              : isAllLessonsCompleted
+                              ? "bg-[#54252C] text-[#F6F1E9]"
+                              : "bg-[#D8C8BA]/40 text-[#292827]/40"
+                          }`}
+                        >
+                          <Award size={18} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#54252C]">
+                              Phase Mastery Assessment
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
+                                assessmentSummary.passed
+                                  ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                  : assessmentSummary.status === "retake"
+                                  ? "bg-amber-100 text-amber-900 border border-amber-200"
+                                  : isAllLessonsCompleted
+                                  ? "bg-[#54252C]/10 text-[#54252C] border border-[#54252C]/20"
+                                  : "bg-[#D8C8BA]/40 text-[#292827]/50"
+                              }`}
+                            >
+                              {assessmentSummary.passed
+                                ? `Passed (${assessmentSummary.bestPercentage}%)`
+                                : assessmentSummary.status === "retake"
+                                ? `Retake Available (${assessmentSummary.bestPercentage}%)`
+                                : isAllLessonsCompleted
+                                ? "Assessment Available"
+                                : "Locked"}
+                            </span>
+                          </div>
+                          <h4 className="font-serif text-sm sm:text-base font-semibold text-[#292827]">
+                            {phase.title} — 10 MCQ Certification
+                          </h4>
+                          <p className="text-xs text-[#292827]/70 font-sans mt-0.5 max-w-xl">
+                            {isAllLessonsCompleted
+                              ? assessmentSummary.passed
+                                ? `Congratulations! You scored ${assessmentSummary.bestPercentage}% on this milestone assessment.`
+                                : assessmentSummary.attemptsCount > 0
+                                ? "Review your lesson materials and retake the 10-question evaluation to achieve 70%+ score."
+                                : "All lessons completed! Test your conceptual mastery with 10 questions to certify this phase."
+                              : "Complete all lessons in this phase to unlock the 10-question certification assessment."}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2.5 sm:shrink-0 pl-12 sm:pl-0">
+                        {isAllLessonsCompleted ? (
+                          assessmentSummary.passed ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAssessmentModal(phase)}
+                                className="px-3.5 py-2 rounded-xl border border-[#D8C8BA] hover:border-[#54252C] text-xs font-semibold text-[#292827] transition-colors"
+                              >
+                                View Results
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAssessmentModal(phase)}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#54252C] hover:bg-[#803F47] text-[#F6F1E9] text-xs font-semibold transition-all shadow-2xs"
+                              >
+                                <RotateCcw size={13} />
+                                <span>Retake</span>
+                              </button>
+                            </>
+                          ) : assessmentSummary.status === "retake" ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAssessmentModal(phase)}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#54252C] hover:bg-[#803F47] text-[#F6F1E9] text-xs font-semibold transition-all shadow-2xs"
+                            >
+                              <RotateCcw size={13} />
+                              <span>Retake Assessment</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAssessmentModal(phase)}
+                              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#54252C] hover:bg-[#803F47] text-[#F6F1E9] text-xs sm:text-sm font-semibold transition-all shadow-xs"
+                            >
+                              <Sparkles size={14} className="text-[#D8C8BA]" />
+                              <span>Take Assessment</span>
+                              <ArrowRight size={14} />
+                            </button>
+                          )
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#D8C8BA]/30 text-[#292827]/40 text-xs font-semibold cursor-not-allowed border border-[#D8C8BA]/50"
+                          >
+                            <Lock size={13} />
+                            <span>Locked</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -759,6 +915,19 @@ function LearningPathContent() {
         onNextLesson={handleNextLessonInModal}
         hasNextLesson={true}
       />
+
+      {/* 7. Phase Mastery MCQ Assessment Modal */}
+      {selectedAssessmentPhase && activeRoadmap && (
+        <AssessmentModal
+          isOpen={isAssessmentModalOpen}
+          onClose={() => setIsAssessmentModalOpen(false)}
+          phase={selectedAssessmentPhase}
+          roadmapId={activeRoadmap.id}
+          onAssessmentCompleted={() => {
+            setAssessmentsVersion((v) => v + 1);
+          }}
+        />
+      )}
     </AppLayout>
   );
 }

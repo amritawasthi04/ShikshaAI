@@ -10,6 +10,8 @@ import {
   SkillMastery,
 } from "@/services/roadmapService";
 import { GeneratedRoadmap, RoadmapPhase, RoadmapLesson } from "@/types/roadmap";
+import { assessmentService } from "@/services/assessmentService";
+import { AssessmentAttempt } from "@/types/assessment";
 import {
   TrendingUp,
   Clock,
@@ -31,6 +33,8 @@ import {
   Target,
   ChevronRight,
   Circle,
+  XCircle,
+  RotateCcw,
 } from "lucide-react";
 import { CountUp, AnimatedContent } from "@/components/reactbits";
 
@@ -42,6 +46,7 @@ export default function ProgressPage() {
   });
 
   const [allRoadmaps, setAllRoadmaps] = useState<GeneratedRoadmap[]>([]);
+  const [assessmentsVersion, setAssessmentsVersion] = useState(0);
 
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(() => {
     const r = roadmapService.getActiveRoadmap();
@@ -70,14 +75,22 @@ export default function ProgressPage() {
       }
     };
 
+    const handleAssessmentUpdate = () => {
+      setAssessmentsVersion((v) => v + 1);
+    };
+
     refreshData();
 
     window.addEventListener("shiksha_roadmap_switched" as any, refreshData);
     window.addEventListener("shiksha_roadmap_updated" as any, refreshData);
+    window.addEventListener("shiksha_assessment_completed" as any, handleAssessmentUpdate);
+    window.addEventListener("shiksha_assessment_updated" as any, handleAssessmentUpdate);
 
     return () => {
       window.removeEventListener("shiksha_roadmap_switched" as any, refreshData);
       window.removeEventListener("shiksha_roadmap_updated" as any, refreshData);
+      window.removeEventListener("shiksha_assessment_completed" as any, handleAssessmentUpdate);
+      window.removeEventListener("shiksha_assessment_updated" as any, handleAssessmentUpdate);
     };
   }, []);
 
@@ -559,7 +572,124 @@ export default function ProgressPage() {
         </div>
       </div>
 
-      {/* 4. Recent Learning Activity & Completion History Table */}
+      {/* 4. Phase MCQ Assessments & Milestone Certifications */}
+      <div className="p-6 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] mb-8 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 mb-5 border-b border-[#D8C8BA]">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#54252C] px-2.5 py-0.5 rounded bg-[#54252C]/10">
+                Milestone Evaluations
+              </span>
+            </div>
+            <h3 className="font-serif text-lg sm:text-xl font-semibold text-[#292827]">
+              Phase MCQ Assessments & Certifications
+            </h3>
+            <p className="text-xs text-[#292827]/70 mt-0.5">
+              Verified records of 10-question phase assessments, mastery scores, and pass statuses.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <span className="text-[11px] text-[#292827]/60 block uppercase font-medium">Passed Phases</span>
+              <span className="font-serif text-lg font-bold text-[#54252C]">
+                {assessmentService.getRoadmapAssessmentStats(roadmap.id).passedPhasesCount} / {roadmap.phases.length} Passed
+              </span>
+            </div>
+            <Link
+              href="/learning-path"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#54252C] hover:bg-[#803F47] text-[#F6F1E9] text-xs font-semibold transition-all shadow-2xs"
+            >
+              <span>Take Assessments</span>
+              <ArrowRight size={13} />
+            </Link>
+          </div>
+        </div>
+
+        {/* Assessments Attempt Table */}
+        {assessmentService.getAttemptsForRoadmap(roadmap.id).length === 0 ? (
+          <div className="py-8 text-center text-xs text-[#292827]/60 bg-white/40 rounded-xl border border-[#D8C8BA]/60 p-6">
+            <Award size={24} className="mx-auto text-[#54252C]/40 mb-2" />
+            <p className="font-medium text-[#292827]">No phase assessments attempted yet.</p>
+            <p className="text-[#292827]/60 mt-1 max-w-sm mx-auto">
+              Complete all lesson milestones in any phase on your{" "}
+              <Link href="/learning-path" className="text-[#54252C] underline font-semibold">
+                Learning Path
+              </Link>{" "}
+              to unlock and complete your first 10-question evaluation.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-[#D8C8BA] text-xs font-semibold text-[#292827]/70 uppercase tracking-wider">
+                  <th className="pb-3">Phase & Assessment</th>
+                  <th className="pb-3">Attempt #</th>
+                  <th className="pb-3">Score & Accuracy</th>
+                  <th className="pb-3">Completed On</th>
+                  <th className="pb-3 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#D8C8BA]/60">
+                {assessmentService.getAttemptsForRoadmap(roadmap.id).map((attempt) => (
+                  <tr key={attempt.id} className="hover:bg-[#D8C8BA]/15 transition-colors">
+                    <td className="py-3.5 font-medium text-[#292827] flex items-center gap-2.5">
+                      <div
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                          attempt.passed
+                            ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                            : "bg-amber-100 text-amber-800 border border-amber-300"
+                        }`}
+                      >
+                        <Award size={15} />
+                      </div>
+                      <div>
+                        <span className="font-semibold block">{attempt.phaseTitle}</span>
+                        <span className="text-xs text-[#292827]/60">{attempt.phaseName}</span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 text-xs text-[#292827]/75 font-medium">
+                      Attempt #{attempt.attemptNumber}
+                    </td>
+                    <td className="py-3.5 text-xs text-[#292827]/80">
+                      <div className="flex items-center gap-2">
+                        <span className="font-serif font-bold text-sm text-[#292827]">
+                          {attempt.percentage}%
+                        </span>
+                        <span className="text-[#292827]/60">
+                          ({attempt.score}/{attempt.totalQuestions} correct)
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 text-xs text-[#292827]/70">
+                      {new Date(attempt.completedAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </td>
+                    <td className="py-3.5 text-right">
+                      <span
+                        className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${
+                          attempt.passed
+                            ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                            : "bg-amber-100 text-amber-900 border border-amber-300"
+                        }`}
+                      >
+                        {attempt.passed ? <CheckCircle2 size={12} /> : <RotateCcw size={12} />}
+                        <span>{attempt.passed ? "Passed" : "Failed"}</span>
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 5. Recent Learning Activity & Completion History Table */}
       <div className="p-6 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] shadow-2xs">
         <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#D8C8BA]">
           <div>
