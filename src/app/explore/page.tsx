@@ -347,12 +347,14 @@ function ExploreContent() {
           const matchReason = getMatchReason(res);
 
           return (
-            <div
+            <motion.div
               key={res.id}
-              className={`p-6 rounded-[10px] border bg-[#F6F1E9] flex flex-col justify-between transition-all group ${
+              whileHover={{ y: -3 }}
+              transition={{ duration: 0.2 }}
+              className={`p-6 rounded-[10px] border bg-[#F6F1E9] flex flex-col justify-between group ${
                 isAdded
                   ? "border-[#54252C]/50 shadow-2xs"
-                  : "border-[#D8C8BA] hover:border-[#54252C]"
+                  : "border-[#D8C8BA] hover:border-[#54252C] shadow-2xs"
               }`}
             >
               <div>
@@ -437,7 +439,7 @@ function ExploreContent() {
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>

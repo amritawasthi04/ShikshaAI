@@ -22,6 +22,7 @@ import {
   ExternalLink,
   Zap,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Message {
   id: string;
@@ -473,8 +474,11 @@ export default function ShikshaBotPage() {
             const isUser = msg.role === "user";
 
             return (
-              <div
+              <motion.div
                 key={msg.id}
+                initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                 className={`flex gap-3 max-w-3xl ${isUser ? "ml-auto justify-end" : "mr-auto justify-start"}`}
               >
                 {!isUser && (
@@ -530,7 +534,7 @@ export default function ShikshaBotPage() {
                     {user?.fullName ? user.fullName.charAt(0).toUpperCase() : "U"}
                   </div>
                 )}
-              </div>
+              </motion.div>
             );
           })}
 

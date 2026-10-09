@@ -18,6 +18,13 @@ import {
   User,
   LayoutDashboard,
 } from "lucide-react";
+import {
+  BlurText,
+  SplitText,
+  CountUp,
+  AnimatedContent,
+  Magnet,
+} from "@/components/reactbits";
 
 export default function LandingPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -59,13 +66,15 @@ export default function LandingPage() {
             >
               Sign In
             </Link>
-            <Link
-              href="/build-path"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[8px] bg-[#54252C] hover:bg-[#803F47] text-[#F6F1E9] text-sm font-medium transition-colors shadow-xs"
-            >
-              <span>Build My Path</span>
-              <ArrowRight size={15} />
-            </Link>
+            <Magnet padding={25} magnetStrength={3}>
+              <Link
+                href="/build-path"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[8px] bg-[#54252C] hover:bg-[#803F47] text-[#F6F1E9] text-sm font-medium transition-all shadow-xs active:scale-95"
+              >
+                <span>Build My Path</span>
+                <ArrowRight size={15} />
+              </Link>
+            </Magnet>
           </div>
 
           {/* Mobile Actions: Build Path & Hamburger */}
@@ -151,67 +160,88 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             {/* Hero Left Content */}
             <div className="lg:col-span-7 flex flex-col text-left">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#54252C]/10 text-[#54252C] text-xs font-semibold uppercase tracking-[0.2em] mb-6 w-max">
-                <Sparkles size={13} />
-                <span>Personalized Learning Platform</span>
-              </div>
+              <AnimatedContent distance={20} delay={0.1}>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#54252C]/10 text-[#54252C] text-xs font-semibold uppercase tracking-[0.2em] mb-6 w-max">
+                  <Sparkles size={13} />
+                  <span>Personalized Learning Platform</span>
+                </div>
+              </AnimatedContent>
 
               <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl text-[#292827] font-normal leading-[1.12] tracking-tight mb-6">
-                Knowledge Builds <br />
-                <span className="text-[#54252C]">Brighter Futures</span>
+                <SplitText
+                  text="Knowledge Builds"
+                  className="font-serif text-4xl sm:text-5xl lg:text-6xl text-[#292827] font-normal"
+                  delay={25}
+                />
+                <br />
+                <span className="text-[#54252C]">
+                  <SplitText
+                    text="Brighter Futures"
+                    className="font-serif text-4xl sm:text-5xl lg:text-6xl text-[#54252C] font-normal"
+                    delay={35}
+                  />
+                </span>
               </h1>
 
-              <p className="text-base sm:text-lg text-[#292827]/80 leading-relaxed max-w-xl mb-8 font-sans">
-                Personalised learning paths, structured skill milestones, real
-                practice and continuous progress — all in one calm, editorial
-                workspace.
-              </p>
+              <AnimatedContent distance={20} delay={0.25}>
+                <p className="text-base sm:text-lg text-[#292827]/80 leading-relaxed max-w-xl mb-8 font-sans">
+                  Personalised learning paths, structured skill milestones, real
+                  practice and continuous progress — all in one calm, editorial
+                  workspace.
+                </p>
+              </AnimatedContent>
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 max-w-md">
-                <Link
-                  href="/build-path"
-                  className="flex-1 h-12 flex items-center justify-center gap-2 px-6 rounded-[8px] bg-[#54252C] hover:bg-[#803F47] text-[#F6F1E9] font-medium transition-all shadow-sm"
-                >
-                  <span>Build My Path</span>
-                  <ArrowRight size={18} />
-                </Link>
-                <Link
-                  href="/explore"
-                  className="flex-1 h-12 flex items-center justify-center gap-2 px-6 rounded-[8px] border border-[#54252C] text-[#54252C] hover:bg-[#54252C]/5 font-medium transition-colors"
-                >
-                  <Compass size={18} />
-                  <span>Explore Roadmaps</span>
-                </Link>
-              </div>
+              <AnimatedContent distance={20} delay={0.35}>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 max-w-md">
+                  <Magnet padding={30} magnetStrength={3}>
+                    <Link
+                      href="/build-path"
+                      className="w-full sm:w-auto h-12 flex items-center justify-center gap-2 px-6 rounded-[8px] bg-[#54252C] hover:bg-[#803F47] text-[#F6F1E9] font-medium transition-all shadow-sm active:scale-98"
+                    >
+                      <span>Build My Path</span>
+                      <ArrowRight size={18} />
+                    </Link>
+                  </Magnet>
+                  <Link
+                    href="/explore"
+                    className="flex-1 h-12 flex items-center justify-center gap-2 px-6 rounded-[8px] border border-[#54252C] text-[#54252C] hover:bg-[#54252C]/5 font-medium transition-colors active:scale-98"
+                  >
+                    <Compass size={18} />
+                    <span>Explore Roadmaps</span>
+                  </Link>
+                </div>
+              </AnimatedContent>
 
               {/* Stats Row */}
-              <div className="grid grid-cols-3 gap-6 pt-10 mt-10 border-t border-[#D8C8BA]/80">
-                <div>
-                  <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#54252C]">
-                    50+
-                  </p>
-                  <p className="text-xs sm:text-sm text-[#292827]/70 mt-0.5">
-                    Curated Roadmaps
-                  </p>
+              <AnimatedContent distance={25} delay={0.45}>
+                <div className="grid grid-cols-3 gap-6 pt-10 mt-10 border-t border-[#D8C8BA]/80">
+                  <div>
+                    <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#54252C]">
+                      <CountUp to={50} suffix="+" duration={1.5} />
+                    </p>
+                    <p className="text-xs sm:text-sm text-[#292827]/70 mt-0.5">
+                      Curated Roadmaps
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#54252C]">
+                      <CountUp to={100} suffix="%" duration={1.8} />
+                    </p>
+                    <p className="text-xs sm:text-sm text-[#292827]/70 mt-0.5">
+                      Adaptive Pacing
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#54252C]">
+                      <CountUp to={94} suffix="%" duration={1.6} />
+                    </p>
+                    <p className="text-xs sm:text-sm text-[#292827]/70 mt-0.5">
+                      Goal Completion
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#54252C]">
-                    100%
-                  </p>
-                  <p className="text-xs sm:text-sm text-[#292827]/70 mt-0.5">
-                    Adaptive Pacing
-                  </p>
-                </div>
-                <div>
-                  <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#54252C]">
-                    94%
-                  </p>
-                  <p className="text-xs sm:text-sm text-[#292827]/70 mt-0.5">
-                    Goal Completion
-                  </p>
-                </div>
-              </div>
+              </AnimatedContent>
             </div>
 
             {/* Hero Right Visual Showcase */}
@@ -253,90 +283,102 @@ export default function LandingPage() {
 
       {/* 4 Core Pillars Section */}
       <section className="py-16 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <span className="text-xs font-semibold tracking-[0.2em] text-[#54252C] uppercase">
-            Platform Capabilities
-          </span>
-          <h2 className="font-serif text-3xl sm:text-4xl text-[#292827] mt-2 font-semibold">
-            Built For Deep, Structured Learning
-          </h2>
-        </div>
+        <AnimatedContent distance={25} delay={0.1}>
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <span className="text-xs font-semibold tracking-[0.2em] text-[#54252C] uppercase">
+              Platform Capabilities
+            </span>
+            <h2 className="font-serif text-3xl sm:text-4xl text-[#292827] mt-2 font-semibold">
+              Built For Deep, Structured Learning
+            </h2>
+          </div>
+        </AnimatedContent>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="p-6 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9] hover:border-[#54252C]/60 transition-colors shadow-2xs">
-            <div className="w-10 h-10 rounded-[6px] bg-[#54252C]/10 text-[#54252C] flex items-center justify-center mb-4">
-              <Route size={22} />
+          <AnimatedContent distance={20} delay={0.1} className="h-full">
+            <div className="p-6 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9] hover:border-[#54252C]/60 transition-colors shadow-2xs h-full">
+              <div className="w-10 h-10 rounded-[6px] bg-[#54252C]/10 text-[#54252C] flex items-center justify-center mb-4">
+                <Route size={22} />
+              </div>
+              <h3 className="font-sans font-semibold text-lg text-[#292827] mb-1.5">
+                Personalised Roadmaps
+              </h3>
+              <p className="text-sm text-[#292827]/75 leading-relaxed">
+                Step-by-step learning blueprints customized to your current skill
+                level and career targets.
+              </p>
             </div>
-            <h3 className="font-sans font-semibold text-lg text-[#292827] mb-1.5">
-              Personalised Roadmaps
-            </h3>
-            <p className="text-sm text-[#292827]/75 leading-relaxed">
-              Step-by-step learning blueprints customized to your current skill
-              level and career targets.
-            </p>
-          </div>
+          </AnimatedContent>
 
-          <div className="p-6 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9] hover:border-[#54252C]/60 transition-colors shadow-2xs">
-            <div className="w-10 h-10 rounded-[6px] bg-[#54252C]/10 text-[#54252C] flex items-center justify-center mb-4">
-              <Layers size={22} />
+          <AnimatedContent distance={20} delay={0.2} className="h-full">
+            <div className="p-6 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9] hover:border-[#54252C]/60 transition-colors shadow-2xs h-full">
+              <div className="w-10 h-10 rounded-[6px] bg-[#54252C]/10 text-[#54252C] flex items-center justify-center mb-4">
+                <Layers size={22} />
+              </div>
+              <h3 className="font-sans font-semibold text-lg text-[#292827] mb-1.5">
+                Skill Milestones
+              </h3>
+              <p className="text-sm text-[#292827]/75 leading-relaxed">
+                Structured modules broken into digestible lessons with clear learning
+                objectives.
+              </p>
             </div>
-            <h3 className="font-sans font-semibold text-lg text-[#292827] mb-1.5">
-              Skill Milestones
-            </h3>
-            <p className="text-sm text-[#292827]/75 leading-relaxed">
-              Structured modules broken into digestible lessons with clear learning
-              objectives.
-            </p>
-          </div>
+          </AnimatedContent>
 
-          <div className="p-6 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9] hover:border-[#54252C]/60 transition-colors shadow-2xs">
-            <div className="w-10 h-10 rounded-[6px] bg-[#54252C]/10 text-[#54252C] flex items-center justify-center mb-4">
-              <CheckCircle2 size={22} />
+          <AnimatedContent distance={20} delay={0.3} className="h-full">
+            <div className="p-6 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9] hover:border-[#54252C]/60 transition-colors shadow-2xs h-full">
+              <div className="w-10 h-10 rounded-[6px] bg-[#54252C]/10 text-[#54252C] flex items-center justify-center mb-4">
+                <CheckCircle2 size={22} />
+              </div>
+              <h3 className="font-sans font-semibold text-lg text-[#292827] mb-1.5">
+                Practice & Assessments
+              </h3>
+              <p className="text-sm text-[#292827]/75 leading-relaxed">
+                Hands-on checkpoints and quizzes to validate your understanding
+                before advancing.
+              </p>
             </div>
-            <h3 className="font-sans font-semibold text-lg text-[#292827] mb-1.5">
-              Practice & Assessments
-            </h3>
-            <p className="text-sm text-[#292827]/75 leading-relaxed">
-              Hands-on checkpoints and quizzes to validate your understanding
-              before advancing.
-            </p>
-          </div>
+          </AnimatedContent>
 
-          <div className="p-6 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9] hover:border-[#54252C]/60 transition-colors shadow-2xs">
-            <div className="w-10 h-10 rounded-[6px] bg-[#54252C]/10 text-[#54252C] flex items-center justify-center mb-4">
-              <TrendingUp size={22} />
+          <AnimatedContent distance={20} delay={0.4} className="h-full">
+            <div className="p-6 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9] hover:border-[#54252C]/60 transition-colors shadow-2xs h-full">
+              <div className="w-10 h-10 rounded-[6px] bg-[#54252C]/10 text-[#54252C] flex items-center justify-center mb-4">
+                <TrendingUp size={22} />
+              </div>
+              <h3 className="font-sans font-semibold text-lg text-[#292827] mb-1.5">
+                Track Your Progress
+              </h3>
+              <p className="text-sm text-[#292827]/75 leading-relaxed">
+                Visualize mastery metrics, learning streaks, and completed milestones
+                over time.
+              </p>
             </div>
-            <h3 className="font-sans font-semibold text-lg text-[#292827] mb-1.5">
-              Track Your Progress
-            </h3>
-            <p className="text-sm text-[#292827]/75 leading-relaxed">
-              Visualize mastery metrics, learning streaks, and completed milestones
-              over time.
-            </p>
-          </div>
+          </AnimatedContent>
         </div>
       </section>
 
       {/* Featured Roadmaps Preview Section */}
       <section className="py-16 bg-[#F6F1E9] border-t border-[#D8C8BA]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
-            <div>
-              <span className="text-xs font-semibold tracking-[0.2em] text-[#54252C] uppercase">
-                Curriculum Library
-              </span>
-              <h2 className="font-serif text-3xl sm:text-4xl text-[#292827] mt-1 font-semibold">
-                Popular Learning Paths
-              </h2>
+          <AnimatedContent distance={20} delay={0.1}>
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
+              <div>
+                <span className="text-xs font-semibold tracking-[0.2em] text-[#54252C] uppercase">
+                  Curriculum Library
+                </span>
+                <h2 className="font-serif text-3xl sm:text-4xl text-[#292827] mt-1 font-semibold">
+                  Popular Learning Paths
+                </h2>
+              </div>
+              <Link
+                href="/explore"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#54252C] hover:text-[#803F47] transition-colors"
+              >
+                <span>View All Roadmaps</span>
+                <ArrowRight size={16} />
+              </Link>
             </div>
-            <Link
-              href="/explore"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#54252C] hover:text-[#803F47] transition-colors"
-            >
-              <span>View All Roadmaps</span>
-              <ArrowRight size={16} />
-            </Link>
-          </div>
+          </AnimatedContent>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
@@ -362,40 +404,41 @@ export default function LandingPage() {
                 desc: "Statistical learning, neural architectures, data pipelines, and model evaluation.",
               },
             ].map((path, idx) => (
-              <div
-                key={idx}
-                className="p-6 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9] flex flex-col justify-between hover:border-[#54252C] transition-all group"
-              >
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xs font-medium px-2.5 py-0.5 rounded-[4px] bg-[#54252C]/10 text-[#54252C]">
-                      {path.level}
-                    </span>
-                    <span className="text-xs text-[#292827]/60">
-                      • {path.duration}
-                    </span>
+              <AnimatedContent key={idx} distance={20} delay={0.1 + idx * 0.1} className="h-full">
+                <div
+                  className="p-6 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9] flex flex-col justify-between hover:border-[#54252C] transition-all group h-full shadow-2xs"
+                >
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-xs font-medium px-2.5 py-0.5 rounded-[4px] bg-[#54252C]/10 text-[#54252C]">
+                        {path.level}
+                      </span>
+                      <span className="text-xs text-[#292827]/60">
+                        • {path.duration}
+                      </span>
+                    </div>
+                    <h3 className="font-sans font-semibold text-lg text-[#292827] group-hover:text-[#54252C] transition-colors mb-2">
+                      {path.title}
+                    </h3>
+                    <p className="text-sm text-[#292827]/75 leading-relaxed mb-6">
+                      {path.desc}
+                    </p>
                   </div>
-                  <h3 className="font-sans font-semibold text-lg text-[#292827] group-hover:text-[#54252C] transition-colors mb-2">
-                    {path.title}
-                  </h3>
-                  <p className="text-sm text-[#292827]/75 leading-relaxed mb-6">
-                    {path.desc}
-                  </p>
-                </div>
 
-                <div className="pt-4 border-t border-[#D8C8BA]/60 flex items-center justify-between">
-                  <span className="text-xs text-[#292827]/70 font-medium">
-                    {path.modules} Structured Modules
-                  </span>
-                  <Link
-                    href="/build-path"
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-[#54252C] hover:underline"
-                  >
-                    <span>Start Path</span>
-                    <ArrowRight size={14} />
-                  </Link>
+                  <div className="pt-4 border-t border-[#D8C8BA]/60 flex items-center justify-between">
+                    <span className="text-xs text-[#292827]/70 font-medium">
+                      {path.modules} Structured Modules
+                    </span>
+                    <Link
+                      href="/build-path"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-[#54252C] hover:underline"
+                    >
+                      <span>Start Path</span>
+                      <ArrowRight size={14} />
+                    </Link>
+                  </div>
                 </div>
-              </div>
+              </AnimatedContent>
             ))}
           </div>
         </div>

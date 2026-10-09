@@ -32,6 +32,7 @@ import {
   ChevronRight,
   Circle,
 } from "lucide-react";
+import { CountUp, AnimatedContent } from "@/components/reactbits";
 
 export default function ProgressPage() {
   const [user, setUser] = useState<UserProfile | null>(() => authService.getCurrentUser());
@@ -180,87 +181,95 @@ export default function ProgressPage() {
       {/* 1. Overall Completion & Core Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-6 mb-8">
         {/* Card 1: Overall Path Completion */}
-        <div className="p-4 sm:p-5 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] shadow-2xs">
-          <div className="flex items-center justify-between text-[#292827]/70 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">
-              Roadmap Completion
-            </span>
-            <Route size={16} className="text-[#54252C]" />
+        <AnimatedContent distance={15} delay={0.05}>
+          <div className="p-4 sm:p-5 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] shadow-2xs h-full">
+            <div className="flex items-center justify-between text-[#292827]/70 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider">
+                Roadmap Completion
+              </span>
+              <Route size={16} className="text-[#54252C]" />
+            </div>
+            <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#54252C]">
+              <CountUp to={activeMetrics.progressPercent} suffix="%" duration={1.4} />
+            </p>
+            <div className="w-full bg-[#D8C8BA]/50 h-1.5 rounded-full mt-3 overflow-hidden">
+              <div
+                style={{ width: `${activeMetrics.progressPercent}%` }}
+                className="bg-[#54252C] h-full rounded-full transition-all duration-500"
+              />
+            </div>
+            <p className="text-xs text-[#292827]/70 mt-2">
+              {completedCount} of {totalCount} total milestones
+            </p>
           </div>
-          <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#54252C]">
-            {activeMetrics.progressPercent}%
-          </p>
-          <div className="w-full bg-[#D8C8BA]/50 h-1.5 rounded-full mt-3 overflow-hidden">
-            <div
-              style={{ width: `${activeMetrics.progressPercent}%` }}
-              className="bg-[#54252C] h-full rounded-full transition-all duration-500"
-            />
-          </div>
-          <p className="text-xs text-[#292827]/70 mt-2">
-            {completedCount} of {totalCount} total milestones
-          </p>
-        </div>
+        </AnimatedContent>
 
         {/* Card 2: Lessons Completed vs Remaining */}
-        <div className="p-4 sm:p-5 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] shadow-2xs">
-          <div className="flex items-center justify-between text-[#292827]/70 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">
-              Lessons Progress
-            </span>
-            <CheckCircle2 size={16} className="text-[#54252C]" />
+        <AnimatedContent distance={15} delay={0.1}>
+          <div className="p-4 sm:p-5 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] shadow-2xs h-full">
+            <div className="flex items-center justify-between text-[#292827]/70 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider">
+                Lessons Progress
+              </span>
+              <CheckCircle2 size={16} className="text-[#54252C]" />
+            </div>
+            <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
+              <CountUp to={completedCount} duration={1.2} />{" "}
+              <span className="text-xs font-sans text-[#292827]/60">/ {totalCount}</span>
+            </p>
+            <div className="flex items-center justify-between text-xs text-[#292827]/70 mt-3">
+              <span className="text-[#54252C] font-semibold">{completedCount} Completed</span>
+              <span>{remainingCount} Remaining</span>
+            </div>
           </div>
-          <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
-            {completedCount}{" "}
-            <span className="text-xs font-sans text-[#292827]/60">/ {totalCount}</span>
-          </p>
-          <div className="flex items-center justify-between text-xs text-[#292827]/70 mt-3">
-            <span className="text-[#54252C] font-semibold">{completedCount} Completed</span>
-            <span>{remainingCount} Remaining</span>
-          </div>
-        </div>
+        </AnimatedContent>
 
         {/* Card 3: Actual Study Time */}
-        <div className="p-4 sm:p-5 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] shadow-2xs">
-          <div className="flex items-center justify-between text-[#292827]/70 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">
-              Actual Study Time
-            </span>
-            <Clock size={16} className="text-[#54252C]" />
+        <AnimatedContent distance={15} delay={0.15}>
+          <div className="p-4 sm:p-5 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] shadow-2xs h-full">
+            <div className="flex items-center justify-between text-[#292827]/70 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider">
+                Actual Study Time
+              </span>
+              <Clock size={16} className="text-[#54252C]" />
+            </div>
+            <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
+              <CountUp to={parseFloat(displayHours)} decimals={1} duration={1.5} />{" "}
+              <span className="text-xs font-sans text-[#292827]/60">/ {displayTarget} hrs</span>
+            </p>
+            <div className="w-full bg-[#D8C8BA]/50 h-1.5 rounded-full mt-3 overflow-hidden">
+              <div
+                style={{
+                  width: `${Math.min((parseFloat(displayHours) / parseFloat(displayTarget)) * 100, 100)}%`,
+                }}
+                className="bg-[#54252C] h-full rounded-full transition-all duration-500"
+              />
+            </div>
+            <p className="text-xs text-[#54252C] font-medium mt-2">
+              Calculated from completed sessions
+            </p>
           </div>
-          <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
-            {displayHours}{" "}
-            <span className="text-xs font-sans text-[#292827]/60">/ {displayTarget} hrs</span>
-          </p>
-          <div className="w-full bg-[#D8C8BA]/50 h-1.5 rounded-full mt-3 overflow-hidden">
-            <div
-              style={{
-                width: `${Math.min((parseFloat(displayHours) / parseFloat(displayTarget)) * 100, 100)}%`,
-              }}
-              className="bg-[#54252C] h-full rounded-full transition-all duration-500"
-            />
-          </div>
-          <p className="text-xs text-[#54252C] font-medium mt-2">
-            Calculated from completed sessions
-          </p>
-        </div>
+        </AnimatedContent>
 
         {/* Card 4: Learning Streak & Projects */}
-        <div className="p-4 sm:p-5 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] shadow-2xs">
-          <div className="flex items-center justify-between text-[#292827]/70 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">
-              Active Streak
-            </span>
-            <Flame size={16} className="text-[#54252C]" />
+        <AnimatedContent distance={15} delay={0.2}>
+          <div className="p-4 sm:p-5 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] shadow-2xs h-full">
+            <div className="flex items-center justify-between text-[#292827]/70 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider">
+                Active Streak
+              </span>
+              <Flame size={16} className="text-[#54252C]" />
+            </div>
+            <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#54252C]">
+              <CountUp to={activeMetrics.learningStreakDays} duration={1.3} />{" "}
+              <span className="text-xs font-sans text-[#292827]/60">Days</span>
+            </p>
+            <div className="flex items-center justify-between text-xs text-[#292827]/70 mt-3">
+              <span>{activeMetrics.completedProjectsCount} Projects Built</span>
+              <span className="text-[#54252C] font-medium">Top 5%</span>
+            </div>
           </div>
-          <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#54252C]">
-            {activeMetrics.learningStreakDays}{" "}
-            <span className="text-xs font-sans text-[#292827]/60">Days</span>
-          </p>
-          <div className="flex items-center justify-between text-xs text-[#292827]/70 mt-3">
-            <span>{activeMetrics.completedProjectsCount} Projects Built</span>
-            <span className="text-[#54252C] font-medium">Top 5%</span>
-          </div>
-        </div>
+        </AnimatedContent>
       </div>
 
       {/* 2. Study Time Distribution Chart + Skill Mastery Grid */}

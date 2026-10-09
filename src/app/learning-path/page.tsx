@@ -29,6 +29,7 @@ import {
   Layers,
   ChevronRight,
 } from "lucide-react";
+import { CountUp, AnimatedContent, AnimatedList } from "@/components/reactbits";
 
 function LearningPathContent() {
   const searchParams = useSearchParams();
@@ -258,53 +259,55 @@ function LearningPathContent() {
       }
     >
       {/* 1. Active Path Header Overview Card */}
-      <div className="p-6 sm:p-8 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] mb-8 shadow-2xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[#D8C8BA]">
-          <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-[4px] bg-[#54252C]/10 text-[#54252C] text-xs font-semibold uppercase tracking-wider mb-2.5">
-              <span className="capitalize">{activeRoadmap.experienceLevel || "Intermediate"} Track</span>
-              <span>•</span>
-              <span className="capitalize">{activeRoadmap.learningStyle || "Balanced"} Learning</span>
+      <AnimatedContent distance={15} delay={0.05}>
+        <div className="p-6 sm:p-8 rounded-[10px] border border-[#D8C8BA] bg-[#F6F1E9] mb-8 shadow-2xs">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[#D8C8BA]">
+            <div>
+              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-[4px] bg-[#54252C]/10 text-[#54252C] text-xs font-semibold uppercase tracking-wider mb-2.5">
+                <span className="capitalize">{activeRoadmap.experienceLevel || "Intermediate"} Track</span>
+                <span>•</span>
+                <span className="capitalize">{activeRoadmap.learningStyle || "Balanced"} Learning</span>
+              </div>
+              <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
+                {activeRoadmap.title}
+              </h2>
+              <p className="text-sm text-[#292827]/75 mt-1 font-sans">
+                Personalized roadmap targeted for{" "}
+                <strong>{activeRoadmap.targetRole || "Software Engineering"}</strong>.
+              </p>
             </div>
-            <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
-              {activeRoadmap.title}
-            </h2>
-            <p className="text-sm text-[#292827]/75 mt-1 font-sans">
-              Personalized roadmap targeted for{" "}
-              <strong>{activeRoadmap.targetRole || "Software Engineering"}</strong>.
-            </p>
+
+            <div className="flex items-center gap-6 text-sm text-[#292827]/80">
+              <div>
+                <p className="text-xs text-[#292827]/60">Total Completion</p>
+                <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#54252C]">
+                  <CountUp to={activeRoadmap.progressPercent} suffix="%" duration={1.4} />
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-[#292827]/60">Lessons Done</p>
+                <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
+                  <CountUp to={activeRoadmap.completedLessons} duration={1.2} /> / {activeRoadmap.totalLessons}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-[#292827]/60">Target Timeline</p>
+                <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
+                  {activeRoadmap.targetDuration || "3 Months"}
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-6 text-sm text-[#292827]/80">
-            <div>
-              <p className="text-xs text-[#292827]/60">Total Completion</p>
-              <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#54252C]">
-                {activeRoadmap.progressPercent}%
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-[#292827]/60">Lessons Done</p>
-              <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
-                {activeRoadmap.completedLessons} / {activeRoadmap.totalLessons}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-[#292827]/60">Target Timeline</p>
-              <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
-                {activeRoadmap.targetDuration || "3 Months"}
-              </p>
-            </div>
+          {/* Progress Bar */}
+          <div className="w-full bg-[#D8C8BA]/50 h-2.5 rounded-full mt-4 overflow-hidden">
+            <div
+              style={{ width: `${activeRoadmap.progressPercent}%` }}
+              className="bg-[#54252C] h-full rounded-full transition-all duration-500"
+            />
           </div>
         </div>
-
-        {/* Progress Bar */}
-        <div className="w-full bg-[#D8C8BA]/50 h-2.5 rounded-full mt-4 overflow-hidden">
-          <div
-            style={{ width: `${activeRoadmap.progressPercent}%` }}
-            className="bg-[#54252C] h-full rounded-full transition-all duration-500"
-          />
-        </div>
-      </div>
+      </AnimatedContent>
 
       {/* 2. Highlight Next Actionable Lesson Banner */}
       {nextActionableLesson && nextActionablePhase && (

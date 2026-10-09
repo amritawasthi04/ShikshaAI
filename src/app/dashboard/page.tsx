@@ -35,6 +35,7 @@ import {
   AlertCircle,
   Plus,
 } from "lucide-react";
+import { CountUp, AnimatedContent, AnimatedList } from "@/components/reactbits";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<UserProfile | null>(() => authService.getCurrentUser());
@@ -214,120 +215,128 @@ export default function DashboardPage() {
       {/* 2. Real Calculated Statistics Row (No Hardcoding) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-6 mb-8">
         {/* Metric 1: Weekly Study Time */}
-        <div className="p-4 sm:p-5 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9]">
-          <div className="flex items-center justify-between text-[#292827]/70 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">
-              Weekly Study Time
-            </span>
-            <Clock size={16} className="text-[#54252C]" />
+        <AnimatedContent distance={15} delay={0.05}>
+          <div className="p-4 sm:p-5 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9] h-full shadow-2xs">
+            <div className="flex items-center justify-between text-[#292827]/70 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider">
+                Weekly Study Time
+              </span>
+              <Clock size={16} className="text-[#54252C]" />
+            </div>
+            <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
+              <CountUp to={activeMetrics?.weeklyStudyHours || 0} duration={1.2} />{" "}
+              <span className="text-xs font-sans text-[#292827]/60">
+                / {activeMetrics?.weeklyTargetHours || 10} hrs
+              </span>
+            </p>
+            <div className="w-full bg-[#D8C8BA]/50 h-1.5 rounded-full mt-3 overflow-hidden">
+              <div
+                style={{
+                  width: `${Math.min(
+                    ((activeMetrics?.weeklyStudyHours || 0) / (activeMetrics?.weeklyTargetHours || 10)) * 100,
+                    100
+                  )}%`,
+                }}
+                className="bg-[#54252C] h-full rounded-full transition-all duration-500"
+              />
+            </div>
+            <p className="text-[0.7rem] text-[#292827]/60 mt-1.5 capitalize">
+              {activeMetrics?.weeklyPaceDescription}
+            </p>
           </div>
-          <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
-            {activeMetrics?.weeklyStudyHours || 0}{" "}
-            <span className="text-xs font-sans text-[#292827]/60">
-              / {activeMetrics?.weeklyTargetHours || 10} hrs
-            </span>
-          </p>
-          <div className="w-full bg-[#D8C8BA]/50 h-1.5 rounded-full mt-3 overflow-hidden">
-            <div
-              style={{
-                width: `${Math.min(
-                  ((activeMetrics?.weeklyStudyHours || 0) / (activeMetrics?.weeklyTargetHours || 10)) * 100,
-                  100
-                )}%`,
-              }}
-              className="bg-[#54252C] h-full rounded-full transition-all duration-500"
-            />
-          </div>
-          <p className="text-[0.7rem] text-[#292827]/60 mt-1.5 capitalize">
-            {activeMetrics?.weeklyPaceDescription}
-          </p>
-        </div>
+        </AnimatedContent>
 
         {/* Metric 2: Completed Lessons */}
-        <div className="p-5 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9]">
-          <div className="flex items-center justify-between text-[#292827]/70 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">
-              Completed Lessons
-            </span>
-            <CheckCircle2 size={16} className="text-[#54252C]" />
+        <AnimatedContent distance={15} delay={0.1}>
+          <div className="p-5 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9] h-full shadow-2xs">
+            <div className="flex items-center justify-between text-[#292827]/70 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider">
+                Completed Lessons
+              </span>
+              <CheckCircle2 size={16} className="text-[#54252C]" />
+            </div>
+            <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
+              <CountUp to={activeMetrics?.completedLessonsCount || 0} duration={1.4} />{" "}
+              <span className="text-xs font-sans text-[#292827]/60">
+                / {activeMetrics?.totalLessonsCount || 0}
+              </span>
+            </p>
+            <div className="w-full bg-[#D8C8BA]/50 h-1.5 rounded-full mt-3 overflow-hidden">
+              <div
+                style={{ width: `${activeMetrics?.progressPercent || 0}%` }}
+                className="bg-[#54252C] h-full rounded-full transition-all duration-500"
+              />
+            </div>
+            <p className="text-[0.7rem] text-[#54252C] font-medium mt-1.5">
+              {activeMetrics?.progressPercent || 0}% curriculum completed
+            </p>
           </div>
-          <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
-            {activeMetrics?.completedLessonsCount || 0}{" "}
-            <span className="text-xs font-sans text-[#292827]/60">
-              / {activeMetrics?.totalLessonsCount || 0}
-            </span>
-          </p>
-          <div className="w-full bg-[#D8C8BA]/50 h-1.5 rounded-full mt-3 overflow-hidden">
-            <div
-              style={{ width: `${activeMetrics?.progressPercent || 0}%` }}
-              className="bg-[#54252C] h-full rounded-full transition-all duration-500"
-            />
-          </div>
-          <p className="text-[0.7rem] text-[#54252C] font-medium mt-1.5">
-            {activeMetrics?.progressPercent || 0}% curriculum completed
-          </p>
-        </div>
+        </AnimatedContent>
 
         {/* Metric 3: Projects & Assessments */}
-        <div className="p-5 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9]">
-          <div className="flex items-center justify-between text-[#292827]/70 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">
-              Projects & Quizzes
-            </span>
-            <Award size={16} className="text-[#54252C]" />
+        <AnimatedContent distance={15} delay={0.15}>
+          <div className="p-5 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9] h-full shadow-2xs">
+            <div className="flex items-center justify-between text-[#292827]/70 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider">
+                Projects & Quizzes
+              </span>
+              <Award size={16} className="text-[#54252C]" />
+            </div>
+            <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
+              <CountUp to={activeMetrics?.completedProjectsCount || 0} duration={1.4} />{" "}
+              <span className="text-xs font-sans text-[#292827]/60">
+                / {activeMetrics?.totalProjectsCount || 0}
+              </span>
+            </p>
+            <div className="w-full bg-[#D8C8BA]/50 h-1.5 rounded-full mt-3 overflow-hidden">
+              <div
+                style={{
+                  width: `${
+                    (activeMetrics?.totalProjectsCount || 0) > 0
+                      ? Math.round(
+                          ((activeMetrics?.completedProjectsCount || 0) /
+                            (activeMetrics?.totalProjectsCount || 1)) *
+                            100
+                        )
+                      : 0
+                  }%`,
+                }}
+                className="bg-[#54252C] h-full rounded-full transition-all duration-500"
+              />
+            </div>
+            <p className="text-[0.7rem] text-[#292827]/70 mt-1.5">Verified milestone builds</p>
           </div>
-          <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
-            {activeMetrics?.completedProjectsCount || 0}{" "}
-            <span className="text-xs font-sans text-[#292827]/60">
-              / {activeMetrics?.totalProjectsCount || 0}
-            </span>
-          </p>
-          <div className="w-full bg-[#D8C8BA]/50 h-1.5 rounded-full mt-3 overflow-hidden">
-            <div
-              style={{
-                width: `${
-                  (activeMetrics?.totalProjectsCount || 0) > 0
-                    ? Math.round(
-                        ((activeMetrics?.completedProjectsCount || 0) /
-                          (activeMetrics?.totalProjectsCount || 1)) *
-                          100
-                      )
-                    : 0
-                }%`,
-              }}
-              className="bg-[#54252C] h-full rounded-full transition-all duration-500"
-            />
-          </div>
-          <p className="text-[0.7rem] text-[#292827]/70 mt-1.5">Verified milestone builds</p>
-        </div>
+        </AnimatedContent>
 
         {/* Metric 4: Learning Streak */}
-        <div className="p-5 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9]">
-          <div className="flex items-center justify-between text-[#292827]/70 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">
-              Learning Streak
-            </span>
-            <Flame size={16} className="text-[#54252C]" />
+        <AnimatedContent distance={15} delay={0.2}>
+          <div className="p-5 rounded-[8px] border border-[#D8C8BA] bg-[#F6F1E9] h-full shadow-2xs">
+            <div className="flex items-center justify-between text-[#292827]/70 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider">
+                Learning Streak
+              </span>
+              <Flame size={16} className="text-[#54252C]" />
+            </div>
+            <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#54252C]">
+              <CountUp to={activeMetrics?.learningStreakDays || 12} duration={1.5} />{" "}
+              <span className="text-xs font-sans text-[#292827]/60">Days</span>
+            </p>
+            <div className="w-full bg-[#D8C8BA]/50 h-1.5 rounded-full mt-3 overflow-hidden">
+              <div
+                style={{
+                  width: `${Math.min(
+                    ((activeMetrics?.learningStreakDays || 12) / 30) * 100,
+                    100
+                  )}%`,
+                }}
+                className="bg-[#54252C] h-full rounded-full"
+              />
+            </div>
+            <p className="text-[0.7rem] text-[#54252C] font-medium mt-1.5">
+              Consistency benchmark on track
+            </p>
           </div>
-          <p className="font-serif text-2xl sm:text-3xl font-semibold text-[#54252C]">
-            {activeMetrics?.learningStreakDays || 12}{" "}
-            <span className="text-xs font-sans text-[#292827]/60">Days</span>
-          </p>
-          <div className="w-full bg-[#D8C8BA]/50 h-1.5 rounded-full mt-3 overflow-hidden">
-            <div
-              style={{
-                width: `${Math.min(
-                  ((activeMetrics?.learningStreakDays || 12) / 30) * 100,
-                  100
-                )}%`,
-              }}
-              className="bg-[#54252C] h-full rounded-full"
-            />
-          </div>
-          <p className="text-[0.7rem] text-[#54252C] font-medium mt-1.5">
-            Consistency benchmark on track
-          </p>
-        </div>
+        </AnimatedContent>
       </div>
 
       {/* 3. Next Recommendation Section with Clear Reason */}
