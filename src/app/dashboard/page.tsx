@@ -41,13 +41,13 @@ export default function DashboardPage() {
   const [user, setUser] = useState<UserProfile | null>(() => authService.getDefaultProfile());
 
   const [roadmap, setRoadmap] = useState<GeneratedRoadmap | null>(() => {
-    return roadmapService.getActiveRoadmap();
+    return roadmapService.getDefaultRoadmap();
   });
 
   const [allRoadmaps, setAllRoadmaps] = useState<GeneratedRoadmap[]>([]);
 
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(() => {
-    const r = roadmapService.getActiveRoadmap();
+    const r = roadmapService.getDefaultRoadmap();
     return roadmapService.getDashboardMetrics(r, 12);
   });
 

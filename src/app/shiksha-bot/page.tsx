@@ -65,26 +65,14 @@ const INITIAL_GREETING: Message = {
   role: "assistant",
   content:
     "Hi! I'm **Shiksha Bot**. How can I help you learn today?\n\nI can explain complex concepts in plain language, design tailored study roadmaps, recommend high-impact resources, or quiz you to test your mastery.",
-  timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+  timestamp: "Just now",
   provider: "Shiksha AI Engine",
 };
 
 export default function ShikshaBotPage() {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [messages, setMessages] = useState<Message[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("shiksha_bot_messages");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch {
-        // fallback
-      }
-    }
-    return [INITIAL_GREETING];
-  });
+  const [messages, setMessages] = useState<Message[]>([INITIAL_GREETING]);
+  const [isLoadedFromStorage, setIsLoadedFromStorage] = useState(false);
 
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -101,20 +89,34 @@ export default function ShikshaBotPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Sync user profile from authService on mount
+  // Sync user profile and saved messages from localStorage on mount
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
     setUser(currentUser);
+
+    try {
+      const saved = localStorage.getItem("shiksha_bot_messages");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+        }
+      }
+    } catch {
+      // fallback
+    }
+    setIsLoadedFromStorage(true);
   }, []);
 
-  // Persist messages
+  // Persist messages only after initial load from storage
   useEffect(() => {
+    if (!isLoadedFromStorage) return;
     try {
       localStorage.setItem("shiksha_bot_messages", JSON.stringify(messages));
     } catch {
       // ignore storage errors
     }
-  }, [messages]);
+  }, [messages, isLoadedFromStorage]);
 
   // Scroll to bottom on new messages
   useEffect(() => {

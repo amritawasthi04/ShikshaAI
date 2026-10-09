@@ -39,17 +39,17 @@ import {
 import { CountUp, AnimatedContent } from "@/components/reactbits";
 
 export default function ProgressPage() {
-  const [user, setUser] = useState<UserProfile | null>(() => authService.getCurrentUser());
+  const [user, setUser] = useState<UserProfile | null>(() => authService.getDefaultProfile());
 
   const [roadmap, setRoadmap] = useState<GeneratedRoadmap | null>(() => {
-    return roadmapService.getActiveRoadmap();
+    return roadmapService.getDefaultRoadmap();
   });
 
   const [allRoadmaps, setAllRoadmaps] = useState<GeneratedRoadmap[]>([]);
   const [assessmentsVersion, setAssessmentsVersion] = useState(0);
 
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(() => {
-    const r = roadmapService.getActiveRoadmap();
+    const r = roadmapService.getDefaultRoadmap();
     return roadmapService.getDashboardMetrics(r, 12);
   });
 

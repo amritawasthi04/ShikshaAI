@@ -40,7 +40,7 @@ function LearningPathContent() {
   const initialLessonParam = searchParams.get("lesson");
 
   const [activeRoadmap, setActiveRoadmap] = useState<GeneratedRoadmap | null>(() => {
-    return roadmapService.getActiveRoadmap();
+    return roadmapService.getDefaultRoadmap();
   });
   const [allRoadmaps, setAllRoadmaps] = useState<GeneratedRoadmap[]>([]);
 
@@ -346,14 +346,18 @@ function LearningPathContent() {
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[#D8C8BA]">
             <div>
               <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-[4px] bg-[#54252C]/10 text-[#54252C] text-xs font-semibold uppercase tracking-wider mb-2.5">
-                <span className="capitalize">{activeRoadmap.experienceLevel || "Intermediate"} Track</span>
+                <span suppressHydrationWarning className="capitalize">
+                  {activeRoadmap.experienceLevel || "Intermediate"} Track
+                </span>
                 <span>•</span>
-                <span className="capitalize">{activeRoadmap.learningStyle || "Balanced"} Learning</span>
+                <span suppressHydrationWarning className="capitalize">
+                  {activeRoadmap.learningStyle || "Balanced"} Learning
+                </span>
               </div>
-              <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
+              <h2 suppressHydrationWarning className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827]">
                 {activeRoadmap.title}
               </h2>
-              <p className="text-sm text-[#292827]/75 mt-1 font-sans">
+              <p suppressHydrationWarning className="text-sm text-[#292827]/75 mt-1 font-sans">
                 Personalized roadmap targeted for{" "}
                 <strong>{activeRoadmap.targetRole || "Software Engineering"}</strong>.
               </p>

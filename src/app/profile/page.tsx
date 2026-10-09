@@ -30,8 +30,10 @@ import {
 
 export default function ProfilePage() {
   const [user, setUser] = useState<UserProfile>(() => authService.getDefaultProfile());
-  const [roadmap, setRoadmap] = useState<GeneratedRoadmap | null>(() => roadmapService.getActiveRoadmap());
-  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [roadmap, setRoadmap] = useState<GeneratedRoadmap | null>(() => roadmapService.getDefaultRoadmap());
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(() => {
+    return roadmapService.getDashboardMetrics(roadmapService.getDefaultRoadmap(), 12);
+  });
 
   // Edit Mode state
   const [isEditing, setIsEditing] = useState(false);

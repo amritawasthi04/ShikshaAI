@@ -33,7 +33,7 @@ function ExploreContent() {
   const queryParam = searchParams.get("q") || "";
 
   const [activeRoadmap, setActiveRoadmap] = useState<GeneratedRoadmap | null>(() => {
-    return roadmapService.getActiveRoadmap();
+    return roadmapService.getDefaultRoadmap();
   });
 
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
