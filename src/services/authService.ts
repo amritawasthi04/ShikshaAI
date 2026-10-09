@@ -96,6 +96,13 @@ class AuthService {
   }
 
   /**
+   * Get default fallback student profile (SSR safe)
+   */
+  getDefaultProfile(): UserProfile {
+    return { ...DEFAULT_USER_PROFILE };
+  }
+
+  /**
    * Update student user profile
    */
   updateUserProfile(partial: Partial<UserProfile>): UserProfile {

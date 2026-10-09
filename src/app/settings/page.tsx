@@ -37,7 +37,7 @@ function SettingsContent() {
   const tabParam = searchParams.get("tab") as SettingsTab | null;
 
   const [activeTab, setActiveTab] = useState<SettingsTab>(tabParam || "profile");
-  const [user, setUser] = useState<UserProfile>(() => authService.getCurrentUser());
+  const [user, setUser] = useState<UserProfile>(() => authService.getDefaultProfile());
   const [currentTheme, setCurrentTheme] = useState<ThemeMode>(() => themeService.getThemePreference());
 
   // Form State: Profile

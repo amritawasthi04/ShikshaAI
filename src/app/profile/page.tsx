@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<UserProfile>(() => authService.getCurrentUser());
+  const [user, setUser] = useState<UserProfile>(() => authService.getDefaultProfile());
   const [roadmap, setRoadmap] = useState<GeneratedRoadmap | null>(() => roadmapService.getActiveRoadmap());
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
 

@@ -30,9 +30,10 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
   const router = useRouter();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [user, setUser] = useState<UserProfile>(() => authService.getCurrentUser());
+  const [user, setUser] = useState<UserProfile>(() => authService.getDefaultProfile());
 
   useEffect(() => {
+    // Sync actual client-side saved user profile after hydration
     setUser(authService.getCurrentUser());
 
     const handleProfileUpdate = (e: CustomEvent<UserProfile>) => {
@@ -136,6 +137,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
               aria-label="User profile menu"
             >
               <div
+                suppressHydrationWarning
                 style={{ backgroundColor: user.avatarBgColor || "#54252C" }}
                 className="w-8 h-8 rounded-full text-[#F6F1E9] flex items-center justify-center font-serif text-sm font-medium select-none shadow-2xs flex-shrink-0"
               >
@@ -161,10 +163,10 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
                     <p className="text-xs font-semibold text-[#54252C] uppercase tracking-wider">
                       Student Account
                     </p>
-                    <p className="text-sm font-medium text-[#292827] truncate">
+                    <p suppressHydrationWarning className="text-sm font-medium text-[#292827] truncate">
                       {user.fullName}
                     </p>
-                    <p className="text-xs text-[#292827]/60 truncate">
+                    <p suppressHydrationWarning className="text-xs text-[#292827]/60 truncate">
                       {user.email}
                     </p>
                   </div>

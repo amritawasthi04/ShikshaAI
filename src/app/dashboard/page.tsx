@@ -38,7 +38,7 @@ import {
 import { CountUp, AnimatedContent, AnimatedList } from "@/components/reactbits";
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<UserProfile | null>(() => authService.getCurrentUser());
+  const [user, setUser] = useState<UserProfile | null>(() => authService.getDefaultProfile());
 
   const [roadmap, setRoadmap] = useState<GeneratedRoadmap | null>(() => {
     return roadmapService.getActiveRoadmap();
@@ -168,7 +168,7 @@ export default function DashboardPage() {
             <span className="capitalize">{roadmap.experienceLevel || "Personalized"} Track</span>
           </div>
 
-          <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827] mb-2">
+          <h2 suppressHydrationWarning className="font-serif text-2xl sm:text-3xl font-semibold text-[#292827] mb-2">
             Welcome back, {user?.fullName || "Aarav Sharma"}
           </h2>
 
